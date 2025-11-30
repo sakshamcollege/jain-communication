@@ -9,9 +9,8 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
-  // Enable Turbopack with empty config to silence the warning
-  // PWA service worker will be generated in production
-  turbopack: {},
+  // Turbopack disabled to allow next-pwa to generate service worker
+  // next-pwa uses webpack plugins which are incompatible with Turbopack
 };
 
 // @ts-expect-error - next-pwa types are incompatible with Next.js 16
