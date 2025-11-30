@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-const RECHARGE_COMMISSION_PERCENT = 3.5;
+const RECHARGE_COMMISSION_PERCENT = 3;
 
 // GET /api/recharges - List all recharges with filters
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
-    const type = searchParams.get("type");
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
-    const search = searchParams.get("search");
 
     const where: Record<string, unknown> = {};
-
-    if (type && type !== "all") {
-      where.type = type;
-    }
 
     if (startDate) {
       where.createdAt = {
@@ -29,13 +23,6 @@ export async function GET(request: NextRequest) {
       where.createdAt = {
         ...(where.createdAt as Record<string, unknown>),
         lte: new Date(endDate),
-      };
-    }
-
-    if (search) {
-      where.mobileNumber = {
-        contains: search,
-        mode: "insensitive",
       };
     }
 
@@ -54,30 +41,30 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/recharges - Create a new recharge
+// POST /api/recharges - Create a new recharge record
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { mobileNumber, amount, type, operator } = body;
+    const { amount, description } = body;
 
     // Validate required fields
-    if (!mobileNumber || !amount || !type) {
+    if (!amount || Number(amount) <= 0) {
       return NextResponse.json(
-        { error: "Mobile number, amount, and type are required" },
+        { error: "Valid amount is required" },
         { status: 400 }
       );
     }
 
-    // Calculate profit at 3.5% commission
-    const profit = (amount * RECHARGE_COMMISSION_PERCENT) / 100;
+    const numericAmount = Number(amount);
+    
+    // Calculate profit at 3% commission
+    const profit = (numericAmount * RECHARGE_COMMISSION_PERCENT) / 100;
 
     const recharge = await prisma.recharge.create({
       data: {
-        mobileNumber,
-        amount: parseFloat(amount),
-        type,
-        operator: operator || null,
+        amount: numericAmount,
         profit,
+        description: description || null,
       },
     });
 

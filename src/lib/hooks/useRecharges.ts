@@ -4,36 +4,28 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export interface Recharge {
   id: string;
-  mobileNumber: string;
   amount: number;
-  type: string;
-  operator: string | null;
   profit: number;
+  description: string | null;
   createdAt: string;
 }
 
 export interface CreateRechargeInput {
-  mobileNumber: string;
   amount: number;
-  type: string;
-  operator?: string;
+  description?: string;
 }
 
 interface RechargeFilters {
-  type?: string;
   startDate?: string;
   endDate?: string;
-  search?: string;
 }
 
 // Fetch recharges with filters
 async function fetchRecharges(filters: RechargeFilters = {}): Promise<Recharge[]> {
   const params = new URLSearchParams();
   
-  if (filters.type) params.append("type", filters.type);
   if (filters.startDate) params.append("startDate", filters.startDate);
   if (filters.endDate) params.append("endDate", filters.endDate);
-  if (filters.search) params.append("search", filters.search);
 
   const response = await fetch(`/api/recharges?${params.toString()}`);
   if (!response.ok) throw new Error("Failed to fetch recharges");

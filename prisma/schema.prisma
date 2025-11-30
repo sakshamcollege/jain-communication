@@ -56,19 +56,16 @@ model Sale {
   @@index([productId])
 }
 
-// Recharge model for mobile recharges, DTH, electricity bills, etc.
+// Recharge model for recording total daily mobile recharges
 model Recharge {
-  id           String   @id @default(uuid())
-  mobileNumber String
-  amount       Float
-  type         String   // PREPAID, POSTPAID, DTH, ELECTRICITY, DATA_CARD
-  operator     String?  // Jio, Airtel, VI, BSNL, Tata Sky, etc.
-  profit       Float    // Auto-calculated at 3.5% commission
-  userId       String?
-  createdAt    DateTime @default(now())
+  id          String   @id @default(uuid())
+  amount      Float    // Total recharge amount
+  profit      Float    // Auto-calculated at 3% commission
+  description String?  // Optional description
+  userId      String?
+  createdAt   DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
-  @@index([type])
 }
