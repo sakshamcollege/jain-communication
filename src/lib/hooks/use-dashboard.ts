@@ -76,3 +76,4 @@ export function useDashboard() {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 }
+
