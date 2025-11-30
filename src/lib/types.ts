@@ -54,16 +54,55 @@ export interface User {
   createdAt: Date;
 }
 
+// Recharge types
+export interface Recharge {
+  id: string;
+  mobileNumber: string;
+  amount: number;
+  type: string;
+  operator?: string | null;
+  profit: number;
+  userId?: string | null;
+  createdAt: Date;
+}
+
 // Dashboard types
 export interface DashboardStats {
+  // Product Sales
   todaySales: number;
   todayProfit: number;
-  totalProducts: number;
-  lowStockCount: number;
+  todaySalesCount: number;
   weeklySales: number;
   weeklyProfit: number;
+  weeklySalesCount: number;
   monthlySales: number;
   monthlyProfit: number;
+  monthlySalesCount: number;
+  
+  // Recharges
+  todayRecharges: number;
+  todayRechargeCommission: number;
+  todayRechargeCount: number;
+  weeklyRecharges: number;
+  weeklyRechargeCommission: number;
+  weeklyRechargeCount: number;
+  monthlyRecharges: number;
+  monthlyRechargeCommission: number;
+  monthlyRechargeCount: number;
+  
+  // Combined totals
+  todayTotalProfit: number;
+  weeklyTotalProfit: number;
+  monthlyTotalProfit: number;
+  
+  // Inventory
+  totalProducts: number;
+  lowStockCount: number;
+  
+  // Recent activity
+  recentSales: SaleWithProduct[];
+  recentRecharges: Recharge[];
+  lowStockProducts: Product[];
 }
 
 export interface SaleWithProduct extends Sale {
