@@ -48,11 +48,9 @@ interface DashboardStats {
   }>;
   recentRecharges: Array<{
     id: string;
-    mobileNumber: string;
     amount: number;
-    type: string;
-    operator?: string | null;
     profit: number;
+    description?: string | null;
     createdAt: string;
   }>;
   lowStockProducts: Array<{

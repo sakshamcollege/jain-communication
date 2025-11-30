@@ -247,10 +247,12 @@ export default function DashboardPage() {
                 {stats.recentRecharges.map((recharge) => (
                   <div key={recharge.id} className="flex items-center justify-between py-2 border-b last:border-0">
                     <div>
-                      <p className="font-medium text-sm">{recharge.mobileNumber}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {recharge.type.replace("_", " ")} {recharge.operator && `• ${recharge.operator}`}
-                      </p>
+                      <p className="font-medium text-sm">Mobile Recharge</p>
+                      {recharge.description && (
+                        <p className="text-xs text-muted-foreground">
+                          {recharge.description}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right">
                       <p className="font-semibold text-sm">{formatCurrency(recharge.amount)}</p>
