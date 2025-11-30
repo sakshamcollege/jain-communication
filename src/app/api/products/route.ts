@@ -1,0 +1,83 @@
+import { NextRequest, NextResponse } from "next/server";
+import prisma from "@/lib/prisma";
+import { CreateProductInput } from "@/lib/types";
+
+// GET all products with optional search and filters
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const search = searchParams.get("search") || "";
+    const category = searchParams.get("category") || "";
+    const lowStock = searchParams.get("lowStock") === "true";
+    const sortBy = searchParams.get("sortBy") || "createdAt";
+    const order = searchParams.get("order") || "desc";
+
+    const where: Record<string, unknown> = {};
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { supplier: { contains: search, mode: "insensitive" } },
+        { imei: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    if (category) {
+      where.category = category;
+    }
+
+    if (lowStock) {
+      where.stock = { lte: 5 };
+    }
+
+    const products = await prisma.product.findMany({
+      where,
+      orderBy: { [sortBy]: order },
+    });
+
+    return NextResponse.json(products);
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch products" },
+      { status: 500 }
+    );
+  }
+}
+
+// POST create a new product
+export async function POST(request: NextRequest) {
+  try {
+    const body: CreateProductInput = await request.json();
+
+    const { name, category, purchasePrice, sellingPrice, stock, imei, supplier } = body;
+
+    // Validation
+    if (!name || !category || purchasePrice === undefined || sellingPrice === undefined) {
+      return NextResponse.json(
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    const product = await prisma.product.create({
+      data: {
+        name,
+        category,
+        purchasePrice: Number(purchasePrice),
+        sellingPrice: Number(sellingPrice),
+        stock: Number(stock) || 0,
+        imei: imei || null,
+        supplier: supplier || null,
+      },
+    });
+
+    return NextResponse.json(product, { status: 201 });
+  } catch (error) {
+    console.error("Error creating product:", error);
+    return NextResponse.json(
+      { error: "Failed to create product" },
+      { status: 500 }
+    );
+  }
+}

@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("STAFF") // ADMIN or STAFF
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  sales     Sale[]
+  recharges Recharge[]
+}
+
+// Product model for inventory management
+model Product {
+  id            String   @id @default(uuid())
+  name          String
+  category      String
+  purchasePrice Float
+  sellingPrice  Float
+  stock         Int      @default(0)
+  imei          String?
+  supplier      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  sales         Sale[]
+}
+
+// Sale model for recording transactions
+model Sale {
+  id            String   @id @default(uuid())
+  productId     String
+  userId        String?
+  quantity      Int
+  sellingPrice  Float
+  purchasePrice Float
+  profit        Float
+  createdAt     DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([productId])
+}
+
+// Recharge model for mobile recharges, DTH, electricity bills, etc.
+model Recharge {
+  id           String   @id @default(uuid())
+  mobileNumber String
+  amount       Float
+  type         String   // PREPAID, POSTPAID, DTH, ELECTRICITY, DATA_CARD
+  operator     String?  // Jio, Airtel, VI, BSNL, Tata Sky, etc.
+  profit       Float    // Auto-calculated at 3.5% commission
+  userId       String?
+  createdAt    DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([type])
+}
