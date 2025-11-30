@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 interface DashboardStats {
+  // Product Sales
   todaySales: number;
   todayProfit: number;
   todaySalesCount: number;
@@ -10,8 +11,28 @@ interface DashboardStats {
   monthlySales: number;
   monthlyProfit: number;
   monthlySalesCount: number;
+  
+  // Recharges
+  todayRecharges: number;
+  todayRechargeCommission: number;
+  todayRechargeCount: number;
+  weeklyRecharges: number;
+  weeklyRechargeCommission: number;
+  weeklyRechargeCount: number;
+  monthlyRecharges: number;
+  monthlyRechargeCommission: number;
+  monthlyRechargeCount: number;
+  
+  // Combined totals
+  todayTotalProfit: number;
+  weeklyTotalProfit: number;
+  monthlyTotalProfit: number;
+  
+  // Inventory
   totalProducts: number;
   lowStockCount: number;
+  
+  // Recent activity
   recentSales: Array<{
     id: string;
     productId: string;
@@ -24,6 +45,15 @@ interface DashboardStats {
       name: string;
       category: string;
     };
+  }>;
+  recentRecharges: Array<{
+    id: string;
+    mobileNumber: string;
+    amount: number;
+    type: string;
+    operator?: string | null;
+    profit: number;
+    createdAt: string;
   }>;
   lowStockProducts: Array<{
     id: string;
