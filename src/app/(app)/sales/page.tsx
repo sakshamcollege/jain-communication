@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSales } from "@/lib/hooks";
+import { useSales, useDeleteSale } from "@/lib/hooks";
 import { formatCurrency, formatDateTime, getStartOfToday, getStartOfWeek, getStartOfMonth } from "@/lib/helpers";
 import { SalesForm } from "@/components/SalesForm";
 import { SalesListSkeleton } from "@/components/Skeletons";
@@ -22,13 +22,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, ShoppingCart, TrendingUp, Calendar } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Plus, ShoppingCart, TrendingUp, Calendar, Trash2, Loader2 } from "lucide-react";
+import { SaleWithProduct } from "@/lib/types";
 
 type DateFilter = "today" | "week" | "month" | "all";
 
 export default function SalesPage() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("today");
   const [isAddingOpen, setIsAddingOpen] = useState(false);
+  const [saleToDelete, setSaleToDelete] = useState<SaleWithProduct | null>(null);
+  
+  const deleteSaleMutation = useDeleteSale();
 
   const getDateRange = () => {
     switch (dateFilter) {
@@ -60,6 +72,17 @@ export default function SalesPage() {
     week: "This Week",
     month: "This Month",
     all: "All Time",
+  };
+
+  const handleDeleteSale = async () => {
+    if (!saleToDelete) return;
+    
+    try {
+      await deleteSaleMutation.mutateAsync(saleToDelete.id);
+      setSaleToDelete(null);
+    } catch (error) {
+      console.error("Error deleting sale:", error);
+    }
   };
 
   if (error) {
@@ -173,14 +196,24 @@ export default function SalesPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold">
-                      {formatCurrency(sale.sellingPrice * sale.quantity)}
-                    </p>
-                    <p className="text-sm text-green-600 flex items-center justify-end gap-1">
-                      <TrendingUp className="w-3 h-3" />
-                      {formatCurrency(sale.profit)}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="font-semibold">
+                        {formatCurrency(sale.sellingPrice * sale.quantity)}
+                      </p>
+                      <p className="text-sm text-green-600 flex items-center justify-end gap-1">
+                        <TrendingUp className="w-3 h-3" />
+                        {formatCurrency(sale.profit)}
+                      </p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => setSaleToDelete(sale)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -202,6 +235,66 @@ export default function SalesPage() {
           </Button>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!saleToDelete} onOpenChange={(open) => !open && setSaleToDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Sale</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this sale? This action will restore{" "}
+              <span className="font-semibold">{saleToDelete?.quantity} unit(s)</span> of{" "}
+              <span className="font-semibold">{saleToDelete?.product.name}</span> back to stock.
+            </DialogDescription>
+          </DialogHeader>
+          {saleToDelete && (
+            <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-2 border">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Product:</span>
+                <span className="font-medium">{saleToDelete.product.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Quantity:</span>
+                <span className="font-medium">{saleToDelete.quantity}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount:</span>
+                <span className="font-medium">{formatCurrency(saleToDelete.sellingPrice * saleToDelete.quantity)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Profit:</span>
+                <span className="font-medium text-green-600">{formatCurrency(saleToDelete.profit)}</span>
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setSaleToDelete(null)}
+              disabled={deleteSaleMutation.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteSale}
+              disabled={deleteSaleMutation.isPending}
+            >
+              {deleteSaleMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Sale
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

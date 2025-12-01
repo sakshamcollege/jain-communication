@@ -36,6 +36,17 @@ async function createSale(data: CreateSaleInput): Promise<Sale> {
   return response.json();
 }
 
+// Delete sale
+async function deleteSale(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/${id}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to delete sale");
+  }
+}
+
 // React Query Hooks
 export function useSales(params?: {
   startDate?: string;
@@ -54,6 +65,19 @@ export function useCreateSale() {
 
   return useMutation({
     mutationFn: createSale,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useDeleteSale() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteSale,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
