@@ -43,6 +43,14 @@ async function createRecharge(data: CreateRechargeInput): Promise<Recharge> {
   return response.json();
 }
 
+// Delete recharge
+async function deleteRecharge(id: string): Promise<void> {
+  const response = await fetch(`/api/recharges/${id}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) throw new Error("Failed to delete recharge");
+}
+
 // Hook to get recharges
 export function useRecharges(filters: RechargeFilters = {}) {
   return useQuery({
@@ -57,6 +65,19 @@ export function useCreateRecharge() {
 
   return useMutation({
     mutationFn: createRecharge,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recharges"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+// Hook to delete recharge
+export function useDeleteRecharge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: deleteRecharge,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recharges"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
