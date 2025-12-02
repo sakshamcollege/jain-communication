@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -75,6 +75,7 @@ export function Navigation() {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-64 p-0">
+              <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
               <div className="p-4 border-b">
                 <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setOpen(false)}>
                   <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
