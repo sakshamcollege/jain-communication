@@ -25,17 +25,18 @@ model User {
 
 // Product model for inventory management
 model Product {
-  id            String   @id @default(uuid())
-  name          String
-  category      String
-  purchasePrice Float
-  sellingPrice  Float
-  stock         Int      @default(0)
-  imei          String?
-  supplier      String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  sales         Sale[]
+  id             String          @id @default(uuid())
+  name           String
+  category       String
+  purchasePrice  Float
+  sellingPrice   Float
+  stock          Int             @default(0)
+  imei           String?
+  supplier       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  sales          Sale[]
+  stockMovements StockMovement[]
 }
 
 // Sale model for recording transactions
@@ -68,4 +69,23 @@ model Recharge {
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
+}
+
+// Stock Movement model for tracking stock history
+model StockMovement {
+  id            String   @id @default(uuid())
+  productId     String
+  type          String   // "STOCK_IN" | "STOCK_OUT" | "INITIAL" | "ADJUSTMENT"
+  quantity      Int      // Positive for stock in, negative for stock out
+  previousStock Int      // Stock before this movement
+  newStock      Int      // Stock after this movement
+  reason        String?  // Optional reason/description
+  referenceId   String?  // Reference to sale ID if it's a sale
+  createdAt     DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([productId])
+  @@index([type])
 }

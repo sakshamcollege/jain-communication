@@ -22,6 +22,9 @@ export async function DELETE(
       );
     }
 
+    const previousStock = sale.product.stock;
+    const newStock = previousStock + sale.quantity;
+
     // Delete the sale and restore the stock in a transaction
     await prisma.$transaction([
       // Delete the sale
@@ -36,6 +39,24 @@ export async function DELETE(
         },
       }),
     ]);
+
+    // Log stock movement for the deleted sale (stock restored) - non-blocking
+    try {
+      await prisma.stockMovement.create({
+        data: {
+          productId: sale.productId,
+          type: "STOCK_IN",
+          quantity: sale.quantity,
+          previousStock,
+          newStock,
+          reason: `Sale deleted - ${sale.quantity} unit(s) restored`,
+          referenceId: id,
+        },
+      });
+    } catch (stockError) {
+      console.error("Failed to log stock movement for sale deletion:", stockError);
+      // Don't fail the deletion if stock movement logging fails
+    }
 
     return NextResponse.json({ 
       success: true, 

@@ -174,11 +174,12 @@ function ProductsPageContent() {
 
       {/* Edit Product Sheet */}
       <Sheet open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
-        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-          <SheetHeader>
+        <SheetContent className="w-full sm:max-w-md flex flex-col p-0">
+          <SheetHeader className="px-6 py-4 border-b">
             <SheetTitle>Edit Product</SheetTitle>
+            <p className="text-sm text-muted-foreground">Update product details below</p>
           </SheetHeader>
-          <div className="mt-6">
+          <div className="flex-1 overflow-y-auto px-6 py-4">
             {editingProduct && (
               <ProductForm
                 product={editingProduct}

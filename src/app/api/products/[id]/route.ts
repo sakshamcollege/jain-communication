@@ -48,6 +48,18 @@ export async function PUT(
 
     const { name, category, purchasePrice, sellingPrice, stock, imei, supplier } = body;
 
+    // Get current product to check stock changes
+    const currentProduct = await prisma.product.findUnique({
+      where: { id },
+    });
+
+    if (!currentProduct) {
+      return NextResponse.json(
+        { error: "Product not found" },
+        { status: 404 }
+      );
+    }
+
     const product = await prisma.product.update({
       where: { id },
       data: {
@@ -60,6 +72,29 @@ export async function PUT(
         ...(supplier !== undefined && { supplier: supplier || null }),
       },
     });
+
+    // Log stock movement if stock changed (non-blocking)
+    if (stock !== undefined && Number(stock) !== currentProduct.stock) {
+      const previousStock = currentProduct.stock;
+      const newStock = Number(stock);
+      const quantityChange = newStock - previousStock;
+
+      try {
+        await prisma.stockMovement.create({
+          data: {
+            productId: id,
+            type: quantityChange > 0 ? "STOCK_IN" : "ADJUSTMENT",
+            quantity: quantityChange,
+            previousStock,
+            newStock,
+            reason: quantityChange > 0 ? "Stock added via product update" : "Stock adjusted via product update",
+          },
+        });
+      } catch (stockError) {
+        console.error("Failed to log stock movement:", stockError);
+        // Don't fail the product update if stock movement logging fails
+      }
+    }
 
     return NextResponse.json(product);
   } catch (error) {

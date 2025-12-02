@@ -9,8 +9,8 @@ import {
   ShoppingCart, 
   BarChart3,
   Menu,
-  X,
-  Smartphone
+  Smartphone,
+  History
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ const navItems = [
   { href: "/products", label: "Products", icon: Package },
   { href: "/sales", label: "Sales", icon: ShoppingCart },
   { href: "/recharges", label: "Recharges", icon: Smartphone },
+  { href: "/stock-history", label: "Stock History", icon: History },
   { href: "/reports", label: "Reports", icon: BarChart3 },
 ];
 
@@ -40,13 +41,13 @@ export function Navigation() {
             href={item.href}
             onClick={() => setOpen(false)}
             className={cn(
-              "flex items-center gap-3 px-4 py-3 rounded-lg transition-colors",
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm",
               "hover:bg-accent hover:text-accent-foreground",
               isActive && "bg-primary text-primary-foreground hover:bg-primary/90"
             )}
           >
-            <Icon className="w-5 h-5" />
-            <span className="font-medium">{item.label}</span>
+            <Icon className="w-4 h-4 flex-shrink-0" />
+            <span className="font-medium truncate">{item.label}</span>
           </Link>
         );
       })}
@@ -71,8 +72,16 @@ export function Navigation() {
                 <Menu className="w-6 h-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-64">
-              <div className="flex flex-col gap-2 mt-8">
+            <SheetContent side="right" className="w-64 p-0">
+              <div className="p-4 border-b">
+                <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setOpen(false)}>
+                  <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                    <Package className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  <span className="font-bold">Jain Communication</span>
+                </Link>
+              </div>
+              <div className="flex flex-col gap-1 p-3">
                 <NavLinks />
               </div>
             </SheetContent>
@@ -81,22 +90,24 @@ export function Navigation() {
       </nav>
 
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-64 border-r bg-background flex-col p-4">
-        <Link href="/dashboard" className="flex items-center gap-2 mb-8">
-          <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-            <Package className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <div>
-            <h1 className="font-bold text-lg leading-tight">Jain</h1>
-            <p className="text-xs text-muted-foreground">Communication</p>
-          </div>
-        </Link>
+      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-60 border-r bg-background flex-col">
+        <div className="p-4 border-b">
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
+              <Package className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="font-bold text-base leading-tight">Jain</h1>
+              <p className="text-xs text-muted-foreground">Communication</p>
+            </div>
+          </Link>
+        </div>
 
-        <nav className="flex flex-col gap-2 flex-1">
+        <nav className="flex flex-col gap-1 flex-1 p-3 overflow-y-auto">
           <NavLinks />
         </nav>
 
-        <div className="pt-4 border-t">
+        <div className="p-3 border-t">
           <p className="text-xs text-muted-foreground text-center">
             Stock & Sales Manager
           </p>

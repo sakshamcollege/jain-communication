@@ -66,6 +66,26 @@ export interface Recharge {
   createdAt: Date;
 }
 
+// Stock Movement types
+export type StockMovementType = "STOCK_IN" | "STOCK_OUT" | "INITIAL" | "ADJUSTMENT";
+
+export interface StockMovement {
+  id: string;
+  productId: string;
+  type: StockMovementType;
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  reason?: string | null;
+  referenceId?: string | null;
+  createdAt: Date;
+  product?: Product;
+}
+
+export interface StockMovementWithProduct extends StockMovement {
+  product: Product;
+}
+
 // Dashboard types
 export interface DashboardStats {
   // Product Sales

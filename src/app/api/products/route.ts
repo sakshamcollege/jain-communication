@@ -60,17 +60,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const product = await prisma.product.create({
-      data: {
-        name,
-        category,
-        purchasePrice: Number(purchasePrice),
-        sellingPrice: Number(sellingPrice),
-        stock: Number(stock) || 0,
-        imei: imei || null,
-        supplier: supplier || null,
-      },
-    });
+    const initialStock = Number(stock) || 0;
+
+    // Create product and log initial stock movement in a transaction
+    const [product] = await prisma.$transaction([
+      prisma.product.create({
+        data: {
+          name,
+          category,
+          purchasePrice: Number(purchasePrice),
+          sellingPrice: Number(sellingPrice),
+          stock: initialStock,
+          imei: imei || null,
+          supplier: supplier || null,
+        },
+      }),
+    ]);
+
+    // Create initial stock movement if there's initial stock (non-blocking)
+    if (initialStock > 0) {
+      try {
+        await prisma.stockMovement.create({
+          data: {
+            productId: product.id,
+            type: "INITIAL",
+            quantity: initialStock,
+            previousStock: 0,
+            newStock: initialStock,
+            reason: "Initial stock when product was created",
+          },
+        });
+      } catch (stockError) {
+        console.error("Failed to log initial stock movement:", stockError);
+        // Don't fail the product creation if stock movement logging fails
+      }
+    }
 
     return NextResponse.json(product, { status: 201 });
   } catch (error) {

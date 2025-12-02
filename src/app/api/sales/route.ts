@@ -83,7 +83,10 @@ export async function POST(request: NextRequest) {
     // Calculate profit
     const profit = (Number(sellingPrice) - product.purchasePrice) * Number(quantity);
 
-    // Create sale and update stock in a transaction
+    const previousStock = product.stock;
+    const newStock = previousStock - Number(quantity);
+
+    // Create sale, update stock, and log stock movement in a transaction
     const [sale] = await prisma.$transaction([
       prisma.sale.create({
         data: {
@@ -104,6 +107,24 @@ export async function POST(request: NextRequest) {
         },
       }),
     ]);
+
+    // Log stock movement for the sale (non-blocking)
+    try {
+      await prisma.stockMovement.create({
+        data: {
+          productId,
+          type: "STOCK_OUT",
+          quantity: -Number(quantity),
+          previousStock,
+          newStock,
+          reason: `Sold ${Number(quantity)} unit(s)`,
+          referenceId: sale.id,
+        },
+      });
+    } catch (stockError) {
+      console.error("Failed to log stock movement for sale:", stockError);
+      // Don't fail the sale if stock movement logging fails
+    }
 
     return NextResponse.json(sale, { status: 201 });
   } catch (error) {

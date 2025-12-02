@@ -13,7 +13,7 @@ export default function AppLayout({
       <div className="md:hidden h-16" />
       
       {/* Main content area */}
-      <main className="md:ml-64 min-h-screen">
+      <main className="md:ml-60 min-h-screen">
         <div className="container mx-auto p-4 md:p-6 max-w-6xl">
           {children}
         </div>
