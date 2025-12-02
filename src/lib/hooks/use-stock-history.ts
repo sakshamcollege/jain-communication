@@ -35,11 +35,14 @@ async function adjustStock(data: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ action: "adjust", ...data }),
   });
+  
+  const result = await response.json();
+  
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Failed to adjust stock");
+    throw new Error(result.error || "Failed to adjust stock");
   }
-  return response.json();
+  
+  return result;
 }
 
 // React Query Hooks

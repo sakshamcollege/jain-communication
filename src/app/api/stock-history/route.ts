@@ -50,11 +50,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// GET stock summary (current stock for all products with movements)
+// POST stock operations (summary, adjust)
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { action } = body;
+
+    console.log("Stock operation request:", { action, body });
 
     if (action === "summary") {
       // Get all products with their current stock and recent movements
@@ -137,8 +139,9 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error("Error in stock operation:", error);
+    const errorMessage = error instanceof Error ? error.message : "Stock operation failed";
     return NextResponse.json(
-      { error: "Stock operation failed" },
+      { error: errorMessage },
       { status: 500 }
     );
   }
