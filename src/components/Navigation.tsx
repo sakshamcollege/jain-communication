@@ -10,7 +10,8 @@ import {
   BarChart3,
   Menu,
   Smartphone,
-  History
+  History,
+  Wallet
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/products", label: "Products", icon: Package },
   { href: "/sales", label: "Sales", icon: ShoppingCart },
   { href: "/recharges", label: "Recharges", icon: Smartphone },
+  { href: "/expenses", label: "Expenses", icon: Wallet },
   { href: "/stock-history", label: "Stock History", icon: History },
   { href: "/reports", label: "Reports", icon: BarChart3 },
 ];

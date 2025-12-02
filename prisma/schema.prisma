@@ -89,3 +89,15 @@ model StockMovement {
   @@index([productId])
   @@index([type])
 }
+
+// Expense model for tracking daily expenses
+model Expense {
+  id          String   @id @default(uuid())
+  amount      Float    // Expense amount
+  paymentMode String   // Payment mode (SBI Card, HDFC Card, etc.)
+  description String   // What the expense was made for
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([paymentMode])
+}

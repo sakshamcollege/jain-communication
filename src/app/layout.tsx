@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
   title: "Jain Communication - Stock & Sales Manager",
   description: "Mobile shop stock and sales management application for tracking inventory, recording sales, and managing recharges",
   manifest: "/manifest.json",

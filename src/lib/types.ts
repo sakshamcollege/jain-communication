@@ -165,3 +165,28 @@ export const PRODUCT_CATEGORIES = [
 ] as const;
 
 export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
+
+// Expense types
+export const PAYMENT_MODES = [
+  "SBI Card",
+  "HDFC Card",
+  "Axis Card",
+  "RBL Card",
+  "Unity Bank",
+] as const;
+
+export type PaymentMode = (typeof PAYMENT_MODES)[number];
+
+export interface Expense {
+  id: string;
+  amount: number;
+  paymentMode: PaymentMode;
+  description: string;
+  createdAt: Date;
+}
+
+export interface CreateExpenseInput {
+  amount: number;
+  paymentMode: PaymentMode;
+  description: string;
+}

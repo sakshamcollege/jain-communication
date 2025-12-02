@@ -2,3 +2,4 @@ export { useProducts, useProduct, useCreateProduct, useUpdateProduct, useDeleteP
 export { useSales, useCreateSale, useDeleteSale } from "./use-sales";
 export { useDashboard } from "./use-dashboard";
 export { useStockHistory, useAdjustStock } from "./use-stock-history";
+export { useExpenses, useCreateExpense, useDeleteExpense } from "./use-expenses";
