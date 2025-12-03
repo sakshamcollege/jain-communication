@@ -45,12 +45,6 @@ export interface CreateSaleInput {
   sellingPrice: number;
 }
 
-export interface UpdateSaleInput {
-  id: string;
-  quantity?: number;
-  sellingPrice?: number;
-}
-
 // User types
 export interface User {
   id: string;
