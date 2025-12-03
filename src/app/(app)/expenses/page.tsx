@@ -32,21 +32,21 @@ import { ExpenseListSkeleton } from "@/components/Skeletons";
 import { EditButton, DeleteButton } from "@/components/ui/action-buttons";
 import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
 import {
+  DateFilterSelect,
+  DateFilter,
+  dateFilterLabels,
+  getDateRangeFromFilter,
+} from "@/components/DateFilter";
+import {
   formatCurrency,
   formatDateTime,
-  getStartOfToday,
-  getStartOfWeek,
-  getStartOfMonth,
 } from "@/lib/helpers";
 import {
   Plus,
   CreditCard,
   Wallet,
-  Calendar,
 } from "lucide-react";
 import { Expense } from "@/lib/types";
-
-type DateFilter = "today" | "week" | "month" | "all";
 
 export default function ExpensesPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -56,27 +56,7 @@ export default function ExpensesPage() {
 
   const deleteExpenseMutation = useDeleteExpense();
 
-  const getDateRange = () => {
-    switch (dateFilter) {
-      case "today":
-        return { startDate: getStartOfToday().toISOString() };
-      case "week":
-        return { startDate: getStartOfWeek().toISOString() };
-      case "month":
-        return { startDate: getStartOfMonth().toISOString() };
-      default:
-        return {};
-    }
-  };
-
-  const { data: expenses, isLoading, error } = useExpenses(getDateRange());
-
-  const dateFilterLabel = {
-    today: "Today",
-    week: "This Week",
-    month: "This Month",
-    all: "All Time",
-  };
+  const { data: expenses, isLoading, error } = useExpenses(getDateRangeFromFilter(dateFilter));
 
   // Calculate totals
   const totalAmount = expenses?.reduce((sum, e) => sum + e.amount, 0) || 0;
@@ -168,7 +148,7 @@ export default function ExpensesPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
               <Wallet className="h-4 w-4" />
-              <span className="text-sm">{dateFilterLabel[dateFilter]} Expenses</span>
+              <span className="text-sm">{dateFilterLabels[dateFilter]} Expenses</span>
             </div>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">
               {formatCurrency(totalAmount)}
@@ -212,18 +192,7 @@ export default function ExpensesPage() {
 
       {/* Date Filter */}
       <div className="flex items-center gap-4">
-        <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-          <SelectTrigger className="w-[180px]">
-            <Calendar className="w-4 h-4 mr-2" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="all">All Time</SelectItem>
-          </SelectContent>
-        </Select>
+        <DateFilterSelect value={dateFilter} onValueChange={setDateFilter} />
       </div>
 
       {/* Expenses List */}
@@ -272,7 +241,7 @@ export default function ExpensesPage() {
           <p className="text-muted-foreground mb-4">
             {dateFilter === "all"
               ? "Record your first expense to get started"
-              : `No expenses recorded for ${dateFilterLabel[dateFilter].toLowerCase()}`}
+              : `No expenses recorded for ${dateFilterLabels[dateFilter].toLowerCase()}`}
           </p>
           <Button onClick={() => handleOpenSheet()}>
             <Plus className="w-4 h-4 mr-2" />

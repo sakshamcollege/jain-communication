@@ -12,27 +12,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useRecharges, useDeleteRecharge, Recharge } from "@/lib/hooks/useRecharges";
 import { RechargeForm } from "@/components/RechargeForm";
-import { formatCurrency, formatDateTime, getStartOfToday, getStartOfWeek, getStartOfMonth } from "@/lib/helpers";
+import { formatCurrency, formatDateTime } from "@/lib/helpers";
 import { EditButton, DeleteButton } from "@/components/ui/action-buttons";
 import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
+import {
+  DateFilterSelect,
+  DateFilter,
+  dateFilterLabels,
+  getDateRangeFromFilter,
+} from "@/components/DateFilter";
 import {
   Plus,
   Smartphone,
   TrendingUp,
-  Calendar,
 } from "lucide-react";
 import { RechargeListSkeleton } from "@/components/Skeletons";
-
-type DateFilter = "today" | "week" | "month" | "all";
 
 function RechargesPageContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -42,27 +38,7 @@ function RechargesPageContent() {
 
   const deleteRecharge = useDeleteRecharge();
 
-  const getDateRange = () => {
-    switch (dateFilter) {
-      case "today":
-        return { startDate: getStartOfToday().toISOString() };
-      case "week":
-        return { startDate: getStartOfWeek().toISOString() };
-      case "month":
-        return { startDate: getStartOfMonth().toISOString() };
-      default:
-        return {};
-    }
-  };
-
-  const { data: recharges, isLoading } = useRecharges(getDateRange());
-
-  const dateFilterLabel = {
-    today: "Today",
-    week: "This Week",
-    month: "This Month",
-    all: "All Time",
-  };
+  const { data: recharges, isLoading } = useRecharges(getDateRangeFromFilter(dateFilter));
 
   const handleOpenDialog = (recharge?: Recharge) => {
     setRechargeToEdit(recharge || null);
@@ -95,7 +71,7 @@ function RechargesPageContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Recharges</h1>
-          <p className="text-muted-foreground">{dateFilterLabel[dateFilter]} mobile recharge records</p>
+          <p className="text-muted-foreground">{dateFilterLabels[dateFilter]} mobile recharge records</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -125,7 +101,7 @@ function RechargesPageContent() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Smartphone className="h-4 w-4" />
-              <span className="text-sm">{dateFilterLabel[dateFilter]} Recharges</span>
+              <span className="text-sm">{dateFilterLabels[dateFilter]} Recharges</span>
             </div>
             <p className="text-2xl font-bold">{formatCurrency(totalAmount)}</p>
             <p className="text-xs text-muted-foreground">{recharges?.length || 0} entries</p>
@@ -146,18 +122,7 @@ function RechargesPageContent() {
 
       {/* Date Filter */}
       <div className="flex items-center gap-4">
-        <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-          <SelectTrigger className="w-[180px]">
-            <Calendar className="w-4 h-4 mr-2" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="all">All Time</SelectItem>
-          </SelectContent>
-        </Select>
+        <DateFilterSelect value={dateFilter} onValueChange={setDateFilter} />
       </div>
 
       {/* Recharges List */}
@@ -208,7 +173,7 @@ function RechargesPageContent() {
             <p className="text-muted-foreground mb-4">
               {dateFilter === "all"
                 ? "Record your first recharge to get started"
-                : `No recharges recorded for ${dateFilterLabel[dateFilter].toLowerCase()}`}
+                : `No recharges recorded for ${dateFilterLabels[dateFilter].toLowerCase()}`}
             </p>
             <Button onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" />

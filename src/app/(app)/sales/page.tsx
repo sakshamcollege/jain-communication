@@ -11,19 +11,18 @@ import { Badge } from "@/components/ui/badge";
 import { DeleteButton } from "@/components/ui/action-buttons";
 import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
 import {
+  DateFilterSelect,
+  DateFilter,
+  dateFilterLabels,
+  getDateRangeFromFilter,
+} from "@/components/DateFilter";
+import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -32,10 +31,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, ShoppingCart, TrendingUp, Calendar } from "lucide-react";
+import { Plus, ShoppingCart, TrendingUp } from "lucide-react";
 import { SaleWithProduct } from "@/lib/types";
-
-type DateFilter = "today" | "week" | "month" | "all";
 
 export default function SalesPage() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("today");
@@ -44,20 +41,7 @@ export default function SalesPage() {
   
   const deleteSaleMutation = useDeleteSale();
 
-  const getDateRange = () => {
-    switch (dateFilter) {
-      case "today":
-        return { startDate: getStartOfToday().toISOString() };
-      case "week":
-        return { startDate: getStartOfWeek().toISOString() };
-      case "month":
-        return { startDate: getStartOfMonth().toISOString() };
-      default:
-        return {};
-    }
-  };
-
-  const { data: sales, isLoading, error } = useSales(getDateRange());
+  const { data: sales, isLoading, error } = useSales(getDateRangeFromFilter(dateFilter));
 
   // Calculate totals
   const totals = sales?.reduce(
@@ -136,13 +120,13 @@ export default function SalesPage() {
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">{dateFilterLabel[dateFilter]} Revenue</p>
+            <p className="text-xs text-muted-foreground mb-1">{dateFilterLabels[dateFilter]} Revenue</p>
             <p className="text-xl font-bold">{formatCurrency(totals.revenue)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">{dateFilterLabel[dateFilter]} Profit</p>
+            <p className="text-xs text-muted-foreground mb-1">{dateFilterLabels[dateFilter]} Profit</p>
             <p className="text-xl font-bold text-green-600">{formatCurrency(totals.profit)}</p>
           </CardContent>
         </Card>
@@ -156,18 +140,7 @@ export default function SalesPage() {
 
       {/* Filter */}
       <div className="flex items-center gap-4">
-        <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-          <SelectTrigger className="w-[180px]">
-            <Calendar className="w-4 h-4 mr-2" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="all">All Time</SelectItem>
-          </SelectContent>
-        </Select>
+        <DateFilterSelect value={dateFilter} onValueChange={setDateFilter} />
       </div>
 
       {/* Sales List */}
@@ -222,7 +195,7 @@ export default function SalesPage() {
           <p className="text-muted-foreground mb-4">
             {dateFilter === "all"
               ? "Record your first sale to get started"
-              : `No sales recorded for ${dateFilterLabel[dateFilter].toLowerCase()}`}
+              : `No sales recorded for ${dateFilterLabels[dateFilter].toLowerCase()}`}
           </p>
           <Button onClick={() => setIsAddingOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />
