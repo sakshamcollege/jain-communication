@@ -30,15 +30,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, ShoppingCart, TrendingUp, Calendar, Trash2, Loader2 } from "lucide-react";
+import { Plus, ShoppingCart, TrendingUp, Calendar, Trash2, Loader2, Pencil } from "lucide-react";
 import { SaleWithProduct } from "@/lib/types";
 
 type DateFilter = "today" | "week" | "month" | "all";
 
 export default function SalesPage() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("today");
-  const [isAddingOpen, setIsAddingOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [saleToDelete, setSaleToDelete] = useState<SaleWithProduct | null>(null);
+  const [editingSale, setEditingSale] = useState<SaleWithProduct | null>(null);
   
   const deleteSaleMutation = useDeleteSale();
 
@@ -85,6 +86,16 @@ export default function SalesPage() {
     }
   };
 
+  const handleOpenSheet = (sale?: SaleWithProduct) => {
+    setEditingSale(sale || null);
+    setIsSheetOpen(true);
+  };
+
+  const handleCloseSheet = () => {
+    setIsSheetOpen(false);
+    setEditingSale(null);
+  };
+
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] text-center">
@@ -106,24 +117,25 @@ export default function SalesPage() {
           </p>
         </div>
 
-        <Sheet open={isAddingOpen} onOpenChange={setIsAddingOpen}>
+        <Sheet open={isSheetOpen} onOpenChange={(open) => !open && handleCloseSheet()}>
           <SheetTrigger asChild>
-            <Button>
+            <Button onClick={() => handleOpenSheet()}>
               <Plus className="w-4 h-4 mr-2" />
               New Sale
             </Button>
           </SheetTrigger>
           <SheetContent className="w-full sm:max-w-md overflow-y-auto p-0">
             <SheetHeader className="px-6 pt-6 pb-4">
-              <SheetTitle>Record New Sale</SheetTitle>
+              <SheetTitle>{editingSale ? "Edit Sale" : "Record New Sale"}</SheetTitle>
               <p className="text-sm text-muted-foreground">
-                Select a product and enter sale details
+                {editingSale ? "Update sale details" : "Select a product and enter sale details"}
               </p>
             </SheetHeader>
             <div className="px-6 pb-6">
               <SalesForm
-                onSuccess={() => setIsAddingOpen(false)}
-                onCancel={() => setIsAddingOpen(false)}
+                onSuccess={handleCloseSheet}
+                onCancel={handleCloseSheet}
+                editSale={editingSale || undefined}
               />
             </div>
           </SheetContent>
@@ -196,7 +208,7 @@ export default function SalesPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <div className="text-right">
                       <p className="font-semibold">
                         {formatCurrency(sale.sellingPrice * sale.quantity)}
@@ -206,6 +218,14 @@ export default function SalesPage() {
                         {formatCurrency(sale.profit)}
                       </p>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => handleOpenSheet(sale)}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -229,7 +249,7 @@ export default function SalesPage() {
               ? "Record your first sale to get started"
               : `No sales recorded for ${dateFilterLabel[dateFilter].toLowerCase()}`}
           </p>
-          <Button onClick={() => setIsAddingOpen(true)}>
+          <Button onClick={() => handleOpenSheet()}>
             <Plus className="w-4 h-4 mr-2" />
             Record Sale
           </Button>

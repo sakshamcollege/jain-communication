@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useProducts, useCreateSale } from "@/lib/hooks";
-import { Product } from "@/lib/types";
+import { useProducts, useCreateSale, useUpdateSale } from "@/lib/hooks";
+import { SaleWithProduct } from "@/lib/types";
 import { formatCurrency, calculateProfit } from "@/lib/helpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,30 +14,43 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, TrendingUp, AlertCircle } from "lucide-react";
+import { Loader2, TrendingUp, AlertCircle, Save, Plus } from "lucide-react";
 
 interface SalesFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   preSelectedProductId?: string;
+  editSale?: SaleWithProduct;
 }
 
-export function SalesForm({ onSuccess, onCancel, preSelectedProductId }: SalesFormProps) {
+export function SalesForm({ onSuccess, onCancel, preSelectedProductId, editSale }: SalesFormProps) {
   const { data: products, isLoading: productsLoading } = useProducts();
   const createSaleMutation = useCreateSale();
+  const updateSaleMutation = useUpdateSale();
+
+  const isEditMode = !!editSale;
 
   const [selectedProductId, setSelectedProductId] = useState(preSelectedProductId || "");
   const [quantity, setQuantity] = useState(1);
   const [sellingPrice, setSellingPrice] = useState(0);
 
+  // Populate form when editing
+  useEffect(() => {
+    if (editSale) {
+      setSelectedProductId(editSale.productId);
+      setQuantity(editSale.quantity);
+      setSellingPrice(editSale.sellingPrice);
+    }
+  }, [editSale]);
+
   const selectedProduct = products?.find((p) => p.id === selectedProductId);
 
-  // Update selling price when product is selected
+  // Update selling price when product is selected (only for new sales)
   useEffect(() => {
-    if (selectedProduct) {
+    if (selectedProduct && !editSale) {
       setSellingPrice(selectedProduct.sellingPrice);
     }
-  }, [selectedProduct]);
+  }, [selectedProduct, editSale]);
 
   const profit = selectedProduct
     ? calculateProfit(sellingPrice, selectedProduct.purchasePrice, quantity)
@@ -53,11 +66,19 @@ export function SalesForm({ onSuccess, onCancel, preSelectedProductId }: SalesFo
     }
 
     try {
-      await createSaleMutation.mutateAsync({
-        productId: selectedProductId,
-        quantity,
-        sellingPrice,
-      });
+      if (isEditMode && editSale) {
+        await updateSaleMutation.mutateAsync({
+          id: editSale.id,
+          quantity,
+          sellingPrice,
+        });
+      } else {
+        await createSaleMutation.mutateAsync({
+          productId: selectedProductId,
+          quantity,
+          sellingPrice,
+        });
+      }
       
       // Reset form
       setSelectedProductId("");
@@ -65,11 +86,17 @@ export function SalesForm({ onSuccess, onCancel, preSelectedProductId }: SalesFo
       setSellingPrice(0);
       onSuccess?.();
     } catch (error) {
-      console.error("Error creating sale:", error);
+      console.error("Error saving sale:", error);
     }
   };
 
-  const hasInsufficientStock = selectedProduct && quantity > selectedProduct.stock;
+  // Calculate available stock for edit mode (current stock + originally sold quantity)
+  const availableStock = isEditMode && selectedProduct && editSale
+    ? selectedProduct.stock + editSale.quantity
+    : selectedProduct?.stock || 0;
+
+  const hasInsufficientStock = selectedProduct && quantity > availableStock;
+  const isPending = createSaleMutation.isPending || updateSaleMutation.isPending;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -78,14 +105,14 @@ export function SalesForm({ onSuccess, onCancel, preSelectedProductId }: SalesFo
         <Select
           value={selectedProductId}
           onValueChange={setSelectedProductId}
-          disabled={productsLoading || createSaleMutation.isPending}
+          disabled={productsLoading || isPending || isEditMode}
         >
           <SelectTrigger className="h-11">
             <SelectValue placeholder={productsLoading ? "Loading products..." : "Select a product"} />
           </SelectTrigger>
           <SelectContent>
             {products
-              ?.filter((p) => p.stock > 0)
+              ?.filter((p) => p.stock > 0 || p.id === selectedProductId)
               .map((product) => (
                 <SelectItem key={product.id} value={product.id}>
                   <div className="flex items-center justify-between gap-4 w-full">
@@ -98,6 +125,9 @@ export function SalesForm({ onSuccess, onCancel, preSelectedProductId }: SalesFo
               ))}
           </SelectContent>
         </Select>
+        {isEditMode && (
+          <p className="text-xs text-muted-foreground">Product cannot be changed when editing</p>
+        )}
       </div>
 
       {selectedProduct && (
@@ -113,8 +143,8 @@ export function SalesForm({ onSuccess, onCancel, preSelectedProductId }: SalesFo
             </div>
             <div className="flex justify-between items-center">
               <span className="text-muted-foreground">Available Stock:</span>
-              <span className={`font-medium ${selectedProduct.stock <= 5 ? "text-red-600" : ""}`}>
-                {selectedProduct.stock} units
+              <span className={`font-medium ${availableStock <= 5 ? "text-red-600" : ""}`}>
+                {availableStock} units {isEditMode && "(includes original quantity)"}
               </span>
             </div>
           </div>
@@ -126,10 +156,10 @@ export function SalesForm({ onSuccess, onCancel, preSelectedProductId }: SalesFo
                 id="quantity"
                 type="number"
                 min="1"
-                max={selectedProduct.stock}
+                max={availableStock}
                 value={quantity}
                 onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                disabled={createSaleMutation.isPending}
+                disabled={isPending}
                 className="h-11"
               />
             </div>
@@ -143,7 +173,7 @@ export function SalesForm({ onSuccess, onCancel, preSelectedProductId }: SalesFo
                 step="0.01"
                 value={sellingPrice || ""}
                 onChange={(e) => setSellingPrice(parseFloat(e.target.value) || 0)}
-                disabled={createSaleMutation.isPending}
+                disabled={isPending}
                 className="h-11"
               />
             </div>
@@ -184,7 +214,7 @@ export function SalesForm({ onSuccess, onCancel, preSelectedProductId }: SalesFo
             variant="outline"
             onClick={onCancel}
             className="flex-1 h-11"
-            disabled={createSaleMutation.isPending}
+            disabled={isPending}
           >
             Cancel
           </Button>
@@ -197,23 +227,31 @@ export function SalesForm({ onSuccess, onCancel, preSelectedProductId }: SalesFo
             quantity < 1 ||
             sellingPrice <= 0 ||
             hasInsufficientStock ||
-            createSaleMutation.isPending
+            isPending
           }
         >
-          {createSaleMutation.isPending ? (
+          {isPending ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Recording Sale...
+              {isEditMode ? "Updating..." : "Recording..."}
+            </>
+          ) : isEditMode ? (
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Update Sale
             </>
           ) : (
-            "Record Sale"
+            <>
+              <Plus className="w-4 h-4 mr-2" />
+              Record Sale
+            </>
           )}
         </Button>
       </div>
 
-      {createSaleMutation.isError && (
+      {(createSaleMutation.isError || updateSaleMutation.isError) && (
         <p className="text-sm text-destructive text-center">
-          {createSaleMutation.error?.message}
+          {createSaleMutation.error?.message || updateSaleMutation.error?.message}
         </p>
       )}
     </form>

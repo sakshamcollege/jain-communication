@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Sale, CreateSaleInput, SaleWithProduct } from "@/lib/types";
+import { Sale, CreateSaleInput, UpdateSaleInput, SaleWithProduct } from "@/lib/types";
 
 const API_BASE = "/api/sales";
 
@@ -36,6 +36,21 @@ async function createSale(data: CreateSaleInput): Promise<Sale> {
   return response.json();
 }
 
+// Update sale
+async function updateSale(data: UpdateSaleInput): Promise<SaleWithProduct> {
+  const { id, ...updateData } = data;
+  const response = await fetch(`${API_BASE}/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updateData),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to update sale");
+  }
+  return response.json();
+}
+
 // Delete sale
 async function deleteSale(id: string): Promise<void> {
   const response = await fetch(`${API_BASE}/${id}`, {
@@ -65,6 +80,19 @@ export function useCreateSale() {
 
   return useMutation({
     mutationFn: createSale,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sales"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+export function useUpdateSale() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateSale,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sales"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
