@@ -29,6 +29,8 @@ import {
 import { useExpenses, useDeleteExpense } from "@/lib/hooks";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { ExpenseListSkeleton } from "@/components/Skeletons";
+import { EditButton, DeleteButton } from "@/components/ui/action-buttons";
+import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
 import {
   formatCurrency,
   formatDateTime,
@@ -39,11 +41,8 @@ import {
 import {
   Plus,
   CreditCard,
-  Trash2,
-  Loader2,
-  Calendar,
   Wallet,
-  Pencil,
+  Calendar,
 } from "lucide-react";
 import { Expense } from "@/lib/types";
 
@@ -258,22 +257,8 @@ export default function ExpensesPage() {
                         -{formatCurrency(expense.amount)}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-primary"
-                      onClick={() => handleOpenSheet(expense)}
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => setExpenseToDelete(expense)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <EditButton onClick={() => handleOpenSheet(expense)} />
+                    <DeleteButton onClick={() => setExpenseToDelete(expense)} />
                   </div>
                 </div>
               </CardContent>
@@ -297,64 +282,33 @@ export default function ExpensesPage() {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
+      <DeleteConfirmationDialog
         open={!!expenseToDelete}
         onOpenChange={(open) => !open && setExpenseToDelete(null)}
+        title="Delete Expense"
+        description="Are you sure you want to delete this expense record? This action cannot be undone."
+        onConfirm={handleDeleteExpense}
+        isDeleting={deleteExpenseMutation.isPending}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Expense</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this expense record? This action
-              cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          {expenseToDelete && (
-            <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-2 border">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Description:</span>
-                <span className="font-medium">{expenseToDelete.description}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Payment Mode:</span>
-                <span className="font-medium">{expenseToDelete.paymentMode}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Amount:</span>
-                <span className="font-medium text-red-600">
-                  {formatCurrency(expenseToDelete.amount)}
-                </span>
-              </div>
+        {expenseToDelete && (
+          <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-2 border">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Description:</span>
+              <span className="font-medium">{expenseToDelete.description}</span>
             </div>
-          )}
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setExpenseToDelete(null)}
-              disabled={deleteExpenseMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteExpense}
-              disabled={deleteExpenseMutation.isPending}
-            >
-              {deleteExpenseMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Expense
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Payment Mode:</span>
+              <span className="font-medium">{expenseToDelete.paymentMode}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amount:</span>
+              <span className="font-medium text-red-600">
+                {formatCurrency(expenseToDelete.amount)}
+              </span>
+            </div>
+          </div>
+        )}
+      </DeleteConfirmationDialog>
     </div>
   );
 }

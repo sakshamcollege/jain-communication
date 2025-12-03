@@ -22,14 +22,13 @@ import {
 import { useRecharges, useDeleteRecharge, Recharge } from "@/lib/hooks/useRecharges";
 import { RechargeForm } from "@/components/RechargeForm";
 import { formatCurrency, formatDateTime, getStartOfToday, getStartOfWeek, getStartOfMonth } from "@/lib/helpers";
+import { EditButton, DeleteButton } from "@/components/ui/action-buttons";
+import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
 import {
   Plus,
   Smartphone,
   TrendingUp,
-  Trash2,
-  Loader2,
   Calendar,
-  Pencil,
 } from "lucide-react";
 import { RechargeListSkeleton } from "@/components/Skeletons";
 
@@ -193,22 +192,8 @@ function RechargesPageContent() {
                         {formatDateTime(recharge.createdAt)}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 text-muted-foreground hover:text-primary"
-                      onClick={() => handleOpenDialog(recharge)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                      onClick={() => setRechargeToDelete(recharge)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <EditButton onClick={() => handleOpenDialog(recharge)} />
+                    <DeleteButton onClick={() => setRechargeToDelete(recharge)} />
                   </div>
                 </div>
               </CardContent>
@@ -234,66 +219,35 @@ function RechargesPageContent() {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
+      <DeleteConfirmationDialog
         open={!!rechargeToDelete}
         onOpenChange={(open) => !open && setRechargeToDelete(null)}
+        title="Delete Recharge"
+        description="Are you sure you want to delete this recharge record? This action cannot be undone."
+        onConfirm={handleDelete}
+        isDeleting={deleteRecharge.isPending}
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Recharge</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this recharge record? This action
-              cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          {rechargeToDelete && (
-            <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-2 border">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Amount:</span>
-                <span className="font-medium">{formatCurrency(rechargeToDelete.amount)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Commission:</span>
-                <span className="font-medium text-green-600">
-                  {formatCurrency(rechargeToDelete.profit)}
-                </span>
-              </div>
-              {rechargeToDelete.description && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Description:</span>
-                  <span className="font-medium">{rechargeToDelete.description}</span>
-                </div>
-              )}
+        {rechargeToDelete && (
+          <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-2 border">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amount:</span>
+              <span className="font-medium">{formatCurrency(rechargeToDelete.amount)}</span>
             </div>
-          )}
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setRechargeToDelete(null)}
-              disabled={deleteRecharge.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteRecharge.isPending}
-            >
-              {deleteRecharge.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Recharge
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Commission:</span>
+              <span className="font-medium text-green-600">
+                {formatCurrency(rechargeToDelete.profit)}
+              </span>
+            </div>
+            {rechargeToDelete.description && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Description:</span>
+                <span className="font-medium">{rechargeToDelete.description}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </DeleteConfirmationDialog>
     </div>
   );
 }

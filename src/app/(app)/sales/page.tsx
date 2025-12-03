@@ -8,6 +8,8 @@ import { SalesListSkeleton } from "@/components/Skeletons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { DeleteButton } from "@/components/ui/action-buttons";
+import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
 import {
   Sheet,
   SheetContent,
@@ -30,7 +32,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, ShoppingCart, TrendingUp, Calendar, Trash2, Loader2 } from "lucide-react";
+import { Plus, ShoppingCart, TrendingUp, Calendar } from "lucide-react";
 import { SaleWithProduct } from "@/lib/types";
 
 type DateFilter = "today" | "week" | "month" | "all";
@@ -206,14 +208,7 @@ export default function SalesPage() {
                         {formatCurrency(sale.profit)}
                       </p>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => setSaleToDelete(sale)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <DeleteButton onClick={() => setSaleToDelete(sale)} />
                   </div>
                 </div>
               </CardContent>
@@ -237,64 +232,35 @@ export default function SalesPage() {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!saleToDelete} onOpenChange={(open) => !open && setSaleToDelete(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Sale</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this sale? This action will restore{" "}
-              <span className="font-semibold">{saleToDelete?.quantity} unit(s)</span> of{" "}
-              <span className="font-semibold">{saleToDelete?.product.name}</span> back to stock.
-            </DialogDescription>
-          </DialogHeader>
-          {saleToDelete && (
-            <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-2 border">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Product:</span>
-                <span className="font-medium">{saleToDelete.product.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Quantity:</span>
-                <span className="font-medium">{saleToDelete.quantity}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Amount:</span>
-                <span className="font-medium">{formatCurrency(saleToDelete.sellingPrice * saleToDelete.quantity)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Profit:</span>
-                <span className="font-medium text-green-600">{formatCurrency(saleToDelete.profit)}</span>
-              </div>
+      <DeleteConfirmationDialog
+        open={!!saleToDelete}
+        onOpenChange={(open) => !open && setSaleToDelete(null)}
+        title="Delete Sale"
+        description={`Are you sure you want to delete this sale? This action will restore ${saleToDelete?.quantity} unit(s) of ${saleToDelete?.product.name} back to stock.`}
+        onConfirm={handleDeleteSale}
+        isDeleting={deleteSaleMutation.isPending}
+      >
+        {saleToDelete && (
+          <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-2 border">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Product:</span>
+              <span className="font-medium">{saleToDelete.product.name}</span>
             </div>
-          )}
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setSaleToDelete(null)}
-              disabled={deleteSaleMutation.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteSale}
-              disabled={deleteSaleMutation.isPending}
-            >
-              {deleteSaleMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Sale
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Quantity:</span>
+              <span className="font-medium">{saleToDelete.quantity}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Amount:</span>
+              <span className="font-medium">{formatCurrency(saleToDelete.sellingPrice * saleToDelete.quantity)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Profit:</span>
+              <span className="font-medium text-green-600">{formatCurrency(saleToDelete.profit)}</span>
+            </div>
+          </div>
+        )}
+      </DeleteConfirmationDialog>
     </div>
   );
 }
