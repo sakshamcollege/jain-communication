@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -17,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useRecharges, useDeleteRecharge } from "@/lib/hooks/useRecharges";
+import { useRecharges, useDeleteRecharge, Recharge } from "@/lib/hooks/useRecharges";
 import { RechargeForm } from "@/components/RechargeForm";
 import { formatCurrency, formatDateTime, getStartOfToday, getStartOfWeek, getStartOfMonth } from "@/lib/helpers";
 import {
@@ -27,6 +29,7 @@ import {
   Trash2,
   Loader2,
   Calendar,
+  Pencil,
 } from "lucide-react";
 import { RechargeListSkeleton } from "@/components/Skeletons";
 
@@ -34,8 +37,11 @@ type DateFilter = "today" | "week" | "month" | "all";
 
 function RechargesPageContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [rechargeToEdit, setRechargeToEdit] = useState<Recharge | null>(null);
+  const [rechargeToDelete, setRechargeToDelete] = useState<Recharge | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter>("today");
+
+  const deleteRecharge = useDeleteRecharge();
 
   const getDateRange = () => {
     switch (dateFilter) {
@@ -51,7 +57,6 @@ function RechargesPageContent() {
   };
 
   const { data: recharges, isLoading } = useRecharges(getDateRange());
-  const deleteRecharge = useDeleteRecharge();
 
   const dateFilterLabel = {
     today: "Today",
@@ -60,17 +65,24 @@ function RechargesPageContent() {
     all: "All Time",
   };
 
-  const handleDelete = async (id: string, amount: number) => {
-    if (!confirm(`Delete recharge of ${formatCurrency(amount)}?`)) return;
+  const handleOpenDialog = (recharge?: Recharge) => {
+    setRechargeToEdit(recharge || null);
+    setDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setDialogOpen(false);
+    setRechargeToEdit(null);
+  };
+
+  const handleDelete = async () => {
+    if (!rechargeToDelete) return;
     
-    setDeletingId(id);
     try {
-      await deleteRecharge.mutateAsync(id);
+      await deleteRecharge.mutateAsync(rechargeToDelete.id);
+      setRechargeToDelete(null);
     } catch (error) {
       console.error("Failed to delete recharge:", error);
-      alert("Failed to delete recharge");
-    } finally {
-      setDeletingId(null);
     }
   };
 
@@ -88,16 +100,22 @@ function RechargesPageContent() {
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="lg" className="h-12">
+            <Button size="lg" className="h-12" onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-5 w-5" />
               Add Entry
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Record Recharge</DialogTitle>
+              <DialogTitle>
+                {rechargeToEdit ? "Edit Recharge" : "Record Recharge"}
+              </DialogTitle>
             </DialogHeader>
-            <RechargeForm onSuccess={() => setDialogOpen(false)} />
+            <RechargeForm
+              editRecharge={rechargeToEdit}
+              onSuccess={handleCloseDialog}
+              onCancel={handleCloseDialog}
+            />
           </DialogContent>
         </Dialog>
       </div>
@@ -165,8 +183,8 @@ function RechargesPageContent() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
+                  <div className="flex items-center gap-2">
+                    <div className="text-right mr-2">
                       <p className="font-bold text-lg">{formatCurrency(recharge.amount)}</p>
                       <p className="text-sm text-green-600 dark:text-green-400">
                         +{formatCurrency(recharge.profit)}
@@ -178,15 +196,18 @@ function RechargesPageContent() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleDelete(recharge.id, recharge.amount)}
-                      disabled={deletingId === recharge.id}
+                      className="h-9 w-9 text-muted-foreground hover:text-primary"
+                      onClick={() => handleOpenDialog(recharge)}
                     >
-                      {deletingId === recharge.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-9 w-9 text-muted-foreground hover:text-destructive"
+                      onClick={() => setRechargeToDelete(recharge)}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
@@ -204,13 +225,75 @@ function RechargesPageContent() {
                 ? "Record your first recharge to get started"
                 : `No recharges recorded for ${dateFilterLabel[dateFilter].toLowerCase()}`}
             </p>
-            <Button onClick={() => setDialogOpen(true)}>
+            <Button onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" />
               Add Entry
             </Button>
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={!!rechargeToDelete}
+        onOpenChange={(open) => !open && setRechargeToDelete(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Recharge</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this recharge record? This action
+              cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {rechargeToDelete && (
+            <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-2 border">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount:</span>
+                <span className="font-medium">{formatCurrency(rechargeToDelete.amount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Commission:</span>
+                <span className="font-medium text-green-600">
+                  {formatCurrency(rechargeToDelete.profit)}
+                </span>
+              </div>
+              {rechargeToDelete.description && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Description:</span>
+                  <span className="font-medium">{rechargeToDelete.description}</span>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setRechargeToDelete(null)}
+              disabled={deleteRecharge.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteRecharge.isPending}
+            >
+              {deleteRecharge.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Recharge
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

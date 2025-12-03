@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,22 +11,40 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useCreateExpense } from "@/lib/hooks";
-import { PAYMENT_MODES, PaymentMode } from "@/lib/types";
-import { Loader2, CreditCard } from "lucide-react";
+import { useCreateExpense, useUpdateExpense } from "@/lib/hooks";
+import { PAYMENT_MODES, PaymentMode, Expense } from "@/lib/types";
+import { Loader2, CreditCard, Save } from "lucide-react";
 import { formatCurrency } from "@/lib/helpers";
 
 interface ExpenseFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
+  editExpense?: Expense | null;
 }
 
-export function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
+export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormProps) {
   const [amount, setAmount] = useState("");
   const [paymentMode, setPaymentMode] = useState<PaymentMode | "">("");
   const [description, setDescription] = useState("");
 
   const createExpense = useCreateExpense();
+  const updateExpense = useUpdateExpense();
+
+  const isEditing = !!editExpense;
+  const isPending = createExpense.isPending || updateExpense.isPending;
+
+  // Populate form when editing
+  useEffect(() => {
+    if (editExpense) {
+      setAmount(editExpense.amount.toString());
+      setPaymentMode(editExpense.paymentMode);
+      setDescription(editExpense.description);
+    } else {
+      setAmount("");
+      setPaymentMode("");
+      setDescription("");
+    }
+  }, [editExpense]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,11 +62,20 @@ export function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
     }
 
     try {
-      await createExpense.mutateAsync({
-        amount: parseFloat(amount),
-        paymentMode: paymentMode as PaymentMode,
-        description: description.trim(),
-      });
+      if (isEditing) {
+        await updateExpense.mutateAsync({
+          id: editExpense.id,
+          amount: parseFloat(amount),
+          paymentMode: paymentMode as PaymentMode,
+          description: description.trim(),
+        });
+      } else {
+        await createExpense.mutateAsync({
+          amount: parseFloat(amount),
+          paymentMode: paymentMode as PaymentMode,
+          description: description.trim(),
+        });
+      }
 
       // Reset form
       setAmount("");
@@ -57,7 +84,7 @@ export function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
 
       onSuccess?.();
     } catch (error) {
-      console.error("Failed to create expense:", error);
+      console.error("Failed to save expense:", error);
     }
   };
 
@@ -71,7 +98,7 @@ export function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
         <Select
           value={paymentMode}
           onValueChange={(v) => setPaymentMode(v as PaymentMode)}
-          disabled={createExpense.isPending}
+          disabled={isPending}
         >
           <SelectTrigger className="h-11">
             <SelectValue placeholder="Select payment mode" />
@@ -99,7 +126,7 @@ export function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
           placeholder="e.g., 500"
           min="1"
           step="0.01"
-          disabled={createExpense.isPending}
+          disabled={isPending}
           className="h-11"
         />
       </div>
@@ -115,7 +142,7 @@ export function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="e.g., Office supplies, Transport"
-          disabled={createExpense.isPending}
+          disabled={isPending}
           className="h-11"
         />
       </div>
@@ -143,7 +170,7 @@ export function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
             variant="outline"
             onClick={onCancel}
             className="flex-1 h-11"
-            disabled={createExpense.isPending}
+            disabled={isPending}
           >
             Cancel
           </Button>
@@ -156,13 +183,18 @@ export function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
             parseFloat(amount) <= 0 ||
             !paymentMode ||
             !description.trim() ||
-            createExpense.isPending
+            isPending
           }
         >
-          {createExpense.isPending ? (
+          {isPending ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Recording...
+              {isEditing ? "Updating..." : "Recording..."}
+            </>
+          ) : isEditing ? (
+            <>
+              <Save className="w-4 h-4 mr-2" />
+              Update Expense
             </>
           ) : (
             <>
@@ -173,9 +205,9 @@ export function ExpenseForm({ onSuccess, onCancel }: ExpenseFormProps) {
         </Button>
       </div>
 
-      {createExpense.isError && (
+      {(createExpense.isError || updateExpense.isError) && (
         <p className="text-sm text-destructive text-center">
-          Failed to record expense. Please try again.
+          Failed to {isEditing ? "update" : "record"} expense. Please try again.
         </p>
       )}
     </form>

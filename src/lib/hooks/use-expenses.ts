@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Expense, CreateExpenseInput } from "@/lib/types";
+import { Expense, CreateExpenseInput, UpdateExpenseInput } from "@/lib/types";
 
 interface ExpenseFilters {
   startDate?: string;
@@ -31,6 +31,18 @@ async function createExpense(data: CreateExpenseInput): Promise<Expense> {
   return response.json();
 }
 
+// Update expense
+async function updateExpense(data: UpdateExpenseInput): Promise<Expense> {
+  const { id, ...updateData } = data;
+  const response = await fetch(`/api/expenses/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updateData),
+  });
+  if (!response.ok) throw new Error("Failed to update expense");
+  return response.json();
+}
+
 // Delete expense
 async function deleteExpense(id: string): Promise<void> {
   const response = await fetch(`/api/expenses/${id}`, {
@@ -53,6 +65,19 @@ export function useCreateExpense() {
 
   return useMutation({
     mutationFn: createExpense,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expenses"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+// Hook to update expense
+export function useUpdateExpense() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateExpense,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });

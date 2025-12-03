@@ -43,13 +43,15 @@ import {
   Loader2,
   Calendar,
   Wallet,
+  Pencil,
 } from "lucide-react";
 import { Expense } from "@/lib/types";
 
 type DateFilter = "today" | "week" | "month" | "all";
 
 export default function ExpensesPage() {
-  const [isAddingOpen, setIsAddingOpen] = useState(false);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter>("today");
 
@@ -90,6 +92,16 @@ export default function ExpensesPage() {
     {} as Record<string, number>
   ) || {};
 
+  const handleOpenSheet = (expense?: Expense) => {
+    setExpenseToEdit(expense || null);
+    setIsSheetOpen(true);
+  };
+
+  const handleCloseSheet = () => {
+    setIsSheetOpen(false);
+    setExpenseToEdit(null);
+  };
+
   const handleDeleteExpense = async () => {
     if (!expenseToDelete) return;
 
@@ -122,24 +134,29 @@ export default function ExpensesPage() {
           </p>
         </div>
 
-        <Sheet open={isAddingOpen} onOpenChange={setIsAddingOpen}>
+        <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
           <SheetTrigger asChild>
-            <Button>
+            <Button onClick={() => handleOpenSheet()}>
               <Plus className="w-4 h-4 mr-2" />
               Add Expense
             </Button>
           </SheetTrigger>
           <SheetContent className="w-full sm:max-w-md overflow-y-auto p-0">
             <SheetHeader className="px-6 pt-6 pb-4">
-              <SheetTitle>Record New Expense</SheetTitle>
+              <SheetTitle>
+                {expenseToEdit ? "Edit Expense" : "Record New Expense"}
+              </SheetTitle>
               <p className="text-sm text-muted-foreground">
-                Enter the expense details below
+                {expenseToEdit
+                  ? "Update the expense details below"
+                  : "Enter the expense details below"}
               </p>
             </SheetHeader>
             <div className="px-6 pb-6">
               <ExpenseForm
-                onSuccess={() => setIsAddingOpen(false)}
-                onCancel={() => setIsAddingOpen(false)}
+                editExpense={expenseToEdit}
+                onSuccess={handleCloseSheet}
+                onCancel={handleCloseSheet}
               />
             </div>
           </SheetContent>
@@ -235,12 +252,20 @@ export default function ExpensesPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
+                  <div className="flex items-center gap-2">
+                    <div className="text-right mr-2">
                       <p className="font-semibold text-red-600">
                         -{formatCurrency(expense.amount)}
                       </p>
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-primary"
+                      onClick={() => handleOpenSheet(expense)}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -264,7 +289,7 @@ export default function ExpensesPage() {
               ? "Record your first expense to get started"
               : `No expenses recorded for ${dateFilterLabel[dateFilter].toLowerCase()}`}
           </p>
-          <Button onClick={() => setIsAddingOpen(true)}>
+          <Button onClick={() => handleOpenSheet()}>
             <Plus className="w-4 h-4 mr-2" />
             Add Expense
           </Button>

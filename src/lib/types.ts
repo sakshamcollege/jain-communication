@@ -190,3 +190,13 @@ export interface CreateExpenseInput {
   paymentMode: PaymentMode;
   description: string;
 }
+
+export interface UpdateExpenseInput extends Partial<CreateExpenseInput> {
+  id: string;
+}
+
+export interface UpdateRechargeInput {
+  id: string;
+  amount?: number;
+  description?: string;
+}

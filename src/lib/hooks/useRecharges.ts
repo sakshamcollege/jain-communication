@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { UpdateRechargeInput } from "@/lib/types";
 
 export interface Recharge {
   id: string;
@@ -43,6 +44,18 @@ async function createRecharge(data: CreateRechargeInput): Promise<Recharge> {
   return response.json();
 }
 
+// Update recharge
+async function updateRecharge(data: UpdateRechargeInput): Promise<Recharge> {
+  const { id, ...updateData } = data;
+  const response = await fetch(`/api/recharges/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updateData),
+  });
+  if (!response.ok) throw new Error("Failed to update recharge");
+  return response.json();
+}
+
 // Delete recharge
 async function deleteRecharge(id: string): Promise<void> {
   const response = await fetch(`/api/recharges/${id}`, {
@@ -65,6 +78,19 @@ export function useCreateRecharge() {
 
   return useMutation({
     mutationFn: createRecharge,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recharges"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+    },
+  });
+}
+
+// Hook to update recharge
+export function useUpdateRecharge() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: updateRecharge,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recharges"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
