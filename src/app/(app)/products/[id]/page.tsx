@@ -125,9 +125,49 @@ export default function ProductDetailPage({
               </div>
             </div>
             <div className="p-3 bg-muted rounded-full">
-              <Package className="w-8 h-8 text-muted-foreground" />
+              {product.frontImage ? (
+                <img src={product.frontImage} alt={product.name} className="w-16 h-16 object-cover rounded-full" />
+              ) : (
+                <Package className="w-8 h-8 text-muted-foreground" />
+              )}
             </div>
           </div>
+
+          {/* Description & Specs */}
+          {(product.description || product.specs) && (
+            <div className="grid md:grid-cols-2 gap-6 mt-6 pt-6 border-t">
+              {product.description && (
+                <div>
+                  <h3 className="font-semibold mb-2">Description</h3>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{product.description}</p>
+                </div>
+              )}
+              {product.specs && (
+                <div>
+                  <h3 className="font-semibold mb-2">Specifications</h3>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{product.specs}</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Images */}
+          {(product.frontImage || product.backImage) && (
+             <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t">
+                {product.frontImage && (
+                    <div>
+                        <p className="text-xs text-muted-foreground mb-2">Front View</p>
+                        <img src={product.frontImage} alt="Front" className="rounded-lg border w-full object-contain max-h-60" />
+                    </div>
+                )}
+                {product.backImage && (
+                    <div>
+                        <p className="text-xs text-muted-foreground mb-2">Back View</p>
+                        <img src={product.backImage} alt="Back" className="rounded-lg border w-full object-contain max-h-60" />
+                    </div>
+                )}
+             </div>
+          )}
 
           {/* Price & Stock Info */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">

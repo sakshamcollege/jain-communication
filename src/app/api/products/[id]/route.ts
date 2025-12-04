@@ -46,7 +46,7 @@ export async function PUT(
     const { id } = await params;
     const body: UpdateProductInput = await request.json();
 
-    const { name, category, purchasePrice, sellingPrice, stock, imei, supplier } = body;
+    const { name, category, purchasePrice, sellingPrice, stock, imei, supplier, description, specs, frontImage, backImage } = body;
 
     // Get current product to check stock changes
     const currentProduct = await prisma.product.findUnique({
@@ -70,6 +70,10 @@ export async function PUT(
         ...(stock !== undefined && { stock: Number(stock) }),
         ...(imei !== undefined && { imei: imei || null }),
         ...(supplier !== undefined && { supplier: supplier || null }),
+        ...(description !== undefined && { description: description || null }),
+        ...(specs !== undefined && { specs: specs || null }),
+        ...(frontImage !== undefined && { frontImage: frontImage || null }),
+        ...(backImage !== undefined && { backImage: backImage || null }),
       },
     });
 

@@ -64,7 +64,11 @@ export function ProductCard({ product, onEdit, onDelete, onClick }: ProductCardP
 
           <div className="flex flex-col gap-2">
             <div className="p-2 bg-muted rounded-full">
-              <Package className="w-5 h-5 text-muted-foreground" />
+              {product.frontImage ? (
+                <img src={product.frontImage} alt={product.name} className="w-10 h-10 object-cover rounded-full" />
+              ) : (
+                <Package className="w-5 h-5 text-muted-foreground" />
+              )}
             </div>
             {(onEdit || onDelete) && (
               <div className="flex flex-col gap-1">

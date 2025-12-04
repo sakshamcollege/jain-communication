@@ -8,6 +8,11 @@ export interface Product {
   stock: number;
   imei?: string | null;
   supplier?: string | null;
+  // New fields
+  description?: string | null;
+  specs?: string | null;
+  frontImage?: string | null;
+  backImage?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +25,11 @@ export interface CreateProductInput {
   stock: number;
   imei?: string;
   supplier?: string;
+  // New fields
+  description?: string;
+  specs?: string;
+  frontImage?: string;
+  backImage?: string;
 }
 
 export interface UpdateProductInput extends Partial<CreateProductInput> {

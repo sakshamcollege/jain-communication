@@ -33,6 +33,12 @@ model Product {
   stock          Int             @default(0)
   imei           String?
   supplier       String?
+  // New fields for Shopping Page / Smart Entry
+  description    String?         @db.Text
+  specs          String?         @db.Text
+  frontImage     String?
+  backImage      String?
+
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   sales          Sale[]

@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
   try {
     const body: CreateProductInput = await request.json();
 
-    const { name, category, purchasePrice, sellingPrice, stock, imei, supplier } = body;
+    const { name, category, purchasePrice, sellingPrice, stock, imei, supplier, description, specs, frontImage, backImage } = body;
 
     // Validation
     if (!name || !category || purchasePrice === undefined || sellingPrice === undefined) {
@@ -73,6 +73,10 @@ export async function POST(request: NextRequest) {
           stock: initialStock,
           imei: imei || null,
           supplier: supplier || null,
+          description: description || null,
+          specs: specs || null,
+          frontImage: frontImage || null,
+          backImage: backImage || null,
         },
       }),
     ]);
