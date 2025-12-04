@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { ImageAnnotatorClient } from "@google-cloud/vision";
+import path from "path";
 
 // Initialize client
 // In production (Vercel), we use environment variables directly
@@ -14,6 +15,23 @@ const getClient = () => {
       },
     });
   }
+
+  // Local Development Fix:
+  // If using a file path, ensure it's absolute because relative paths can be flaky in Next.js
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    const credsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    // If it's already absolute, use it directly
+    if (path.isAbsolute(credsPath)) {
+      return new ImageAnnotatorClient({
+        keyFilename: credsPath
+      });
+    }
+    // Otherwise, resolve it relative to process.cwd()
+    return new ImageAnnotatorClient({
+      keyFilename: path.join(process.cwd(), credsPath)
+    });
+  }
+
   return new ImageAnnotatorClient();
 };
 
@@ -103,7 +121,10 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Vision API Error:", error);
     return NextResponse.json(
-      { error: "Failed to analyze image" },
+      { 
+        error: "Failed to analyze image", 
+        details: error instanceof Error ? error.message : String(error) 
+      },
       { status: 500 }
     );
   }
