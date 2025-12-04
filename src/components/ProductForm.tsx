@@ -97,9 +97,11 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
       const result = await response.json();
       
       if (result.success && result.data) {
-        if (!formData.name) handleInputChange("name", result.data.name);
-        if (!formData.description) handleInputChange("description", result.data.description);
-        if (!formData.specs) handleInputChange("specs", result.data.specs);
+        // Update fields if data is returned. 
+        // We check if result.data.name is truthy to avoid overwriting with empty string
+        if (result.data.name) handleInputChange("name", result.data.name);
+        if (result.data.description) handleInputChange("description", result.data.description);
+        if (result.data.specs) handleInputChange("specs", result.data.specs);
         
         const labels = result.data.detectedLabels;
         if (labels.includes("Smartphone") || labels.includes("Mobile phone")) {
