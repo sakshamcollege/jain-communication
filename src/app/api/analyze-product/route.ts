@@ -2,9 +2,22 @@ import { NextResponse } from "next/server";
 import { ImageAnnotatorClient } from "@google-cloud/vision";
 
 // Initialize client
-// Ensure you set GOOGLE_APPLICATION_CREDENTIALS in your .env file pointing to your json key
-// Example: GOOGLE_APPLICATION_CREDENTIALS="./google-credentials.json"
-const client = new ImageAnnotatorClient();
+// In production (Vercel), we use environment variables directly
+// In local, we can use GOOGLE_APPLICATION_CREDENTIALS file path or these env vars
+const getClient = () => {
+  if (process.env.GOOGLE_CLIENT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+    return new ImageAnnotatorClient({
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        project_id: process.env.GOOGLE_PROJECT_ID,
+      },
+    });
+  }
+  return new ImageAnnotatorClient();
+};
+
+const client = getClient();
 
 export async function POST(request: Request) {
   try {
