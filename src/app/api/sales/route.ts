@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { CreateSaleInput } from "@/lib/types";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 // GET all sales with optional date filters
 export async function GET(request: NextRequest) {
@@ -86,11 +88,15 @@ export async function POST(request: NextRequest) {
     const previousStock = product.stock;
     const newStock = previousStock - Number(quantity);
 
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+
     // Create sale, update stock, and log stock movement in a transaction
     const [sale] = await prisma.$transaction([
       prisma.sale.create({
         data: {
           productId,
+          userId,
           quantity: Number(quantity),
           sellingPrice: Number(sellingPrice),
           purchasePrice: product.purchasePrice,

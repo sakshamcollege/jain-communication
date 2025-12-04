@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const RECHARGE_COMMISSION_PERCENT = 3;
 
@@ -60,11 +62,15 @@ export async function POST(request: NextRequest) {
     // Calculate profit at 3% commission
     const profit = (numericAmount * RECHARGE_COMMISSION_PERCENT) / 100;
 
+    const session = await getServerSession(authOptions);
+    const userId = session?.user?.id;
+
     const recharge = await prisma.recharge.create({
       data: {
         amount: numericAmount,
         profit,
         description: description || null,
+        userId,
       },
     });
 

@@ -11,11 +11,14 @@ import {
   Menu,
   Smartphone,
   History,
-  Wallet
+  Wallet,
+  LogOut,
+  User as UserIcon
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
+import { useSession, signOut } from "next-auth/react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -30,6 +33,7 @@ const navItems = [
 export function Navigation() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const { data: session } = useSession();
 
   const NavLinks = () => (
     <>
@@ -74,7 +78,7 @@ export function Navigation() {
                 <Menu className="w-6 h-6" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-64 p-0">
+            <SheetContent side="right" className="w-64 p-0 flex flex-col h-full">
               <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
               <div className="p-4 border-b">
                 <Link href="/dashboard" className="flex items-center gap-2" onClick={() => setOpen(false)}>
@@ -84,8 +88,29 @@ export function Navigation() {
                   <span className="font-bold">Jain Communication</span>
                 </Link>
               </div>
-              <div className="flex flex-col gap-1 p-3">
+              <div className="flex flex-col gap-1 p-3 flex-1 overflow-y-auto">
                 <NavLinks />
+              </div>
+              <div className="p-3 border-t space-y-2 mt-auto">
+                {session?.user && (
+                  <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/50">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <UserIcon className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{session.user.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
+                    </div>
+                  </div>
+                )}
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-start gap-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+                  onClick={() => signOut({ callbackUrl: "/login" })}
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </Button>
               </div>
             </SheetContent>
           </Sheet>
@@ -110,10 +135,26 @@ export function Navigation() {
           <NavLinks />
         </nav>
 
-        <div className="p-3 border-t">
-          <p className="text-xs text-muted-foreground text-center">
-            Stock & Sales Manager
-          </p>
+        <div className="p-3 border-t space-y-2">
+          {session?.user && (
+            <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/50">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <UserIcon className="w-4 h-4 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{session.user.name}</p>
+                <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
+              </div>
+            </div>
+          )}
+          <Button 
+            variant="outline" 
+            className="w-full justify-start gap-2 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50"
+            onClick={() => signOut({ callbackUrl: "/login" })}
+          >
+            <LogOut className="w-4 h-4" />
+            Sign Out
+          </Button>
         </div>
       </aside>
     </>
