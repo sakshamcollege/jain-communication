@@ -60,7 +60,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: "ADMIN" | "STAFF";
+  role: "DEVELOPER" | "OWNER" | "BUYER";
   createdAt: Date;
 }
 

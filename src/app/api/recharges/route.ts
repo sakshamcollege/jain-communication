@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { checkAuth } from "@/lib/api-auth";
 
 const RECHARGE_COMMISSION_PERCENT = 3;
 
 // GET /api/recharges - List all recharges with filters
 export async function GET(request: NextRequest) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -46,6 +48,9 @@ export async function GET(request: NextRequest) {
 // POST /api/recharges - Create a new recharge record
 export async function POST(request: NextRequest) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const body = await request.json();
     const { amount, description } = body;
 
@@ -62,8 +67,7 @@ export async function POST(request: NextRequest) {
     // Calculate profit at 3% commission
     const profit = (numericAmount * RECHARGE_COMMISSION_PERCENT) / 100;
 
-    const session = await getServerSession(authOptions);
-    const userId = session?.user?.id;
+    const userId = auth.session.user.id;
 
     const recharge = await prisma.recharge.create({
       data: {

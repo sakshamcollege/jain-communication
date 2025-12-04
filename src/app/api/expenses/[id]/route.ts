@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { PAYMENT_MODES } from "@/lib/types";
+import { checkAuth } from "@/lib/api-auth";
 
 // PUT /api/expenses/[id] - Update an expense record
 export async function PUT(
@@ -8,6 +9,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
     const body = await request.json();
     const { amount, paymentMode, description } = body;
@@ -78,6 +82,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
 
     // Check if expense exists

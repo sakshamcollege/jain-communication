@@ -1,10 +1,19 @@
 import { Navigation } from "@/components/Navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function AppLayout({
+export default async function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getServerSession(authOptions);
+
+  if (session?.user?.role === "BUYER") {
+    redirect("/shopping");
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Navigation />

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { PAYMENT_MODES } from "@/lib/types";
+import { checkAuth } from "@/lib/api-auth";
 
 // GET /api/expenses - List all expenses with filters
 export async function GET(request: NextRequest) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -43,6 +47,9 @@ export async function GET(request: NextRequest) {
 // POST /api/expenses - Create a new expense record
 export async function POST(request: NextRequest) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const body = await request.json();
     const { amount, paymentMode, description } = body;
 

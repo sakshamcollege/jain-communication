@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkAuth } from "@/lib/api-auth";
 
 // DELETE a sale and restore stock
 export async function DELETE(
@@ -7,6 +8,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
 
     // Find the sale first to get the quantity and product info

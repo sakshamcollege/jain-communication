@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { CreateProductInput } from "@/lib/types";
+import { checkAuth } from "@/lib/api-auth";
 
 // GET all products with optional search and filters
 export async function GET(request: NextRequest) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const searchParams = request.nextUrl.searchParams;
     const search = searchParams.get("search") || "";
     const category = searchParams.get("category") || "";
@@ -48,6 +52,9 @@ export async function GET(request: NextRequest) {
 // POST create a new product
 export async function POST(request: NextRequest) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const body: CreateProductInput = await request.json();
 
     const { name, category, purchasePrice, sellingPrice, stock, imei, supplier, description, specs, frontImage, backImage } = body;

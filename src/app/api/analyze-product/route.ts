@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ImageAnnotatorClient } from "@google-cloud/vision";
 import path from "path";
+import { checkAuth } from "@/lib/api-auth";
 
 // Initialize client
 // In production (Vercel), we use environment variables directly
@@ -39,6 +40,9 @@ const client = getClient();
 
 export async function POST(request: Request) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const { image } = await request.json(); // Expecting base64 string
 
     if (!image) {

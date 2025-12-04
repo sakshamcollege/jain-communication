@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { UpdateProductInput } from "@/lib/types";
+import { checkAuth } from "@/lib/api-auth";
 
 // GET single product by ID
 export async function GET(
@@ -8,6 +9,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
 
     const product = await prisma.product.findUnique({
@@ -43,6 +47,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
     const body: UpdateProductInput = await request.json();
 
@@ -116,6 +123,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const { id } = await params;
 
     await prisma.product.delete({

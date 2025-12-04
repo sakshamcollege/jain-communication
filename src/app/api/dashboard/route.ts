@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getStartOfToday, getStartOfWeek, getStartOfMonth } from "@/lib/helpers";
+import { checkAuth } from "@/lib/api-auth";
 
 // GET dashboard statistics
 export async function GET() {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const startOfToday = getStartOfToday();
     const startOfWeek = getStartOfWeek();
     const startOfMonth = getStartOfMonth();

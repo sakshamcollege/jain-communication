@@ -13,7 +13,8 @@ import {
   History,
   Wallet,
   LogOut,
-  User as UserIcon
+  User as UserIcon,
+  UserCog
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,11 @@ export function Navigation() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const { data: session } = useSession();
+
+  const isAdmin = session?.user?.role === "DEVELOPER" || session?.user?.role === "OWNER";
+  const isBuyer = session?.user?.role === "BUYER";
+
+  if (isBuyer) return null;
 
   const NavLinks = () => (
     <>
@@ -57,6 +63,20 @@ export function Navigation() {
           </Link>
         );
       })}
+      {isAdmin && (
+        <Link
+          href="/users"
+          onClick={() => setOpen(false)}
+          className={cn(
+            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm",
+            "hover:bg-accent hover:text-accent-foreground",
+            pathname === "/users" && "bg-primary text-primary-foreground hover:bg-primary/90"
+          )}
+        >
+          <UserCog className="w-4 h-4 flex-shrink-0" />
+          <span className="font-medium truncate">Users</span>
+        </Link>
+      )}
     </>
   );
 

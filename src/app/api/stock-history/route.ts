@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { checkAuth } from "@/lib/api-auth";
 
 // GET stock movements with optional date filters
 export async function GET(request: NextRequest) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
@@ -53,6 +57,9 @@ export async function GET(request: NextRequest) {
 // POST stock operations (summary, adjust)
 export async function POST(request: NextRequest) {
   try {
+    const auth = await checkAuth();
+    if (!auth.authorized) return auth.response;
+
     const body = await request.json();
     const { action } = body;
 
