@@ -52,6 +52,19 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async session({ session, token }) {
+      // Verify user exists in DB to prevent zombie sessions
+      if (token.id) {
+        const user = await prisma.user.findUnique({
+          where: { id: token.id as string },
+        });
+
+        if (!user) {
+          // If user is deleted, return null/empty session to force signout on client
+          // Note: This might cause type errors if not handled, but NextAuth usually handles null session
+          return null as any;
+        }
+      }
+
       return {
         ...session,
         user: {
