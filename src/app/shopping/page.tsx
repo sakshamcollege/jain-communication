@@ -1,32 +1,40 @@
-"use client";
+import prisma from "@/lib/prisma";
+import { ShoppingProductCard } from "@/components/ShoppingProductCard";
+import { ShoppingCart } from "lucide-react";
 
-import { ShoppingCart, LogOut } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { signOut } from "next-auth/react";
+export const dynamic = "force-dynamic";
 
-export default function ShoppingPage() {
+export default async function ShoppingPage() {
+  const products = await prisma.product.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen text-center px-4 bg-background">
-      <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mb-8">
-        <ShoppingCart className="w-12 h-12 text-primary" />
+    <div className="container mx-auto py-8 px-4">
+      <div className="flex items-center gap-3 mb-8">
+        <div className="p-3 bg-primary/10 rounded-full">
+          <ShoppingCart className="w-6 h-6 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Shop Products</h1>
+          <p className="text-muted-foreground">
+            Browse our collection of mobile phones and accessories
+          </p>
+        </div>
       </div>
-      <h1 className="text-4xl font-bold tracking-tight mb-4">
-        Shopping Coming Soon
-      </h1>
-      <p className="text-xl text-muted-foreground max-w-md mb-8">
-        We are building an amazing shopping experience for you. 
-        Check back soon to browse and purchase products directly.
-      </p>
-      <div className="flex gap-4">
-        <Button 
-          variant="outline" 
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          className="gap-2"
-        >
-          <LogOut className="w-4 h-4" />
-          Sign Out
-        </Button>
-      </div>
+
+      {products.length === 0 ? (
+        <div className="text-center py-20 bg-muted/30 rounded-lg border border-dashed">
+          <h3 className="text-lg font-medium text-muted-foreground">No products available yet</h3>
+          <p className="text-sm text-muted-foreground mt-1">Check back later for new arrivals!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {products.map((product) => (
+            <ShoppingProductCard key={product.id} product={product} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

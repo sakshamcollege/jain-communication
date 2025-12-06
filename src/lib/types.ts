@@ -178,6 +178,7 @@ export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
 
 // Expense types
 export const PAYMENT_MODES = [
+  "Cash",
   "SBI Card",
   "HDFC Card",
   "Axis Card",

@@ -14,7 +14,8 @@ import {
   Wallet,
   LogOut,
   User as UserIcon,
-  UserCog
+  UserCog,
+  Store
 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,7 @@ import { useSession, signOut } from "next-auth/react";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/shopping", label: "Shopping", icon: Store },
   { href: "/products", label: "Products", icon: Package },
   { href: "/sales", label: "Sales", icon: ShoppingCart },
   { href: "/recharges", label: "Recharges", icon: Smartphone },

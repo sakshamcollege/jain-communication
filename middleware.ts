@@ -7,15 +7,13 @@ export default withAuth(
     const isAuth = !!token;
     const isBuyer = token?.role === "BUYER";
     const isShopping = req.nextUrl.pathname === "/shopping";
+    const isApi = req.nextUrl.pathname.startsWith("/api/");
 
-    if (isAuth && isBuyer && !isShopping) {
+    // Redirect buyers to shopping page if they try to access other pages
+    // Allow API access for data fetching
+    if (isAuth && isBuyer && !isShopping && !isApi) {
       return NextResponse.redirect(new URL("/shopping", req.url));
     }
-    
-    // Prevent non-buyers from seeing coming soon page? Optional.
-    // if (isAuth && !isBuyer && isComingSoon) {
-    //   return NextResponse.redirect(new URL("/dashboard", req.url));
-    // }
   },
   {
     callbacks: {
@@ -29,15 +27,18 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    "/",
-    "/dashboard/:path*",
-    "/products/:path*",
-    "/sales/:path*",
-    "/recharges/:path*",
-    "/expenses/:path*",
-    "/reports/:path*",
-    "/stock-history/:path*",
-    "/users/:path*",
-    "/shopping",
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api/auth (NextAuth API routes)
+     * - api/register (Registration API)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - login (login page)
+     * - signup (signup page)
+     * - manifest.json, sw.js, workbox-*, icons (PWA files)
+     * - browserconfig.xml, _offline (other public files)
+     */
+    "/((?!api/auth|api/register|_next/static|_next/image|favicon.ico|login|signup|manifest.json|sw.js|workbox-|icons|browserconfig.xml|_offline).*)",
   ],
 };
