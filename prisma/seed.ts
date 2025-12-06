@@ -12,6 +12,7 @@ async function main() {
     where: { email },
     update: {
       role: 'DEVELOPER', // Ensure role is correct if user exists
+      password: hashedPassword, // Ensure password is updated if user exists
     },
     create: {
       email,
