@@ -65,7 +65,39 @@ export function useCreateExpense() {
 
   return useMutation({
     mutationFn: createExpense,
-    onSuccess: () => {
+    onMutate: async (newExpense) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["expenses"] });
+
+      // Snapshot the previous value
+      const previousExpenses = queryClient.getQueriesData<Expense[]>({ queryKey: ["expenses"] });
+
+      // Optimistically update to the new value
+      const optimisticExpense: Expense = {
+        id: `temp-${Date.now()}`,
+        amount: newExpense.amount,
+        paymentMode: newExpense.paymentMode,
+        description: newExpense.description,
+        createdAt: new Date(),
+      };
+
+      queryClient.setQueriesData<Expense[]>({ queryKey: ["expenses"] }, (old) => {
+        return old ? [optimisticExpense, ...old] : [optimisticExpense];
+      });
+
+      // Return a context object with the snapshotted value
+      return { previousExpenses };
+    },
+    onError: (err, newExpense, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousExpenses) {
+        context.previousExpenses.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+    },
+    onSettled: () => {
+      // Always refetch after error or success
       queryClient.invalidateQueries({ queryKey: ["expenses"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },

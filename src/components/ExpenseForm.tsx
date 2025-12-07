@@ -69,20 +69,28 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
           paymentMode: paymentMode as PaymentMode,
           description: description.trim(),
         });
+        
+        // Reset form
+        setAmount("");
+        setPaymentMode("");
+        setDescription("");
+
+        onSuccess?.();
       } else {
-        await createExpense.mutateAsync({
+        // Optimistic update - fire and forget
+        createExpense.mutate({
           amount: parseFloat(amount),
           paymentMode: paymentMode as PaymentMode,
           description: description.trim(),
         });
+
+        // Close immediately
+        setAmount("");
+        setPaymentMode("");
+        setDescription("");
+
+        onSuccess?.();
       }
-
-      // Reset form
-      setAmount("");
-      setPaymentMode("");
-      setDescription("");
-
-      onSuccess?.();
     } catch (error) {
       console.error("Failed to save expense:", error);
     }
