@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
+    const paymentMode = searchParams.get("paymentMode");
 
     const where: Record<string, unknown> = {};
 
@@ -27,6 +28,10 @@ export async function GET(request: NextRequest) {
         ...(where.createdAt as Record<string, unknown>),
         lte: new Date(endDate),
       };
+    }
+
+    if (paymentMode && PAYMENT_MODES.includes(paymentMode)) {
+      where.paymentMode = paymentMode;
     }
 
     const expenses = await prisma.expense.findMany({

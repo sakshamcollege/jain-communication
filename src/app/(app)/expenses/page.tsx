@@ -46,30 +46,39 @@ import {
   CreditCard,
   Wallet,
 } from "lucide-react";
-import { Expense } from "@/lib/types";
+import { Expense, PaymentMode, PAYMENT_MODES } from "@/lib/types";
 
 export default function ExpensesPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
   const [dateFilter, setDateFilter] = useState<DateFilter>("today");
+  const [paymentModeFilter, setPaymentModeFilter] = useState<PaymentMode | "all">("all");
 
   const deleteExpenseMutation = useDeleteExpense();
 
-  const { data: expenses, isLoading, error } = useExpenses(getDateRangeFromFilter(dateFilter));
+  const filters = {
+    ...getDateRangeFromFilter(dateFilter),
+    ...(paymentModeFilter !== "all" ? { paymentMode: paymentModeFilter } : {}),
+  };
+
+  const { data: expenses, isLoading, error } = useExpenses(filters);
+
+  const filteredExpenses = expenses || [];
 
   // Calculate totals
-  const totalAmount = expenses?.reduce((sum, e) => sum + e.amount, 0) || 0;
-  const expenseCount = expenses?.length || 0;
+  const totalAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const expenseCount = filteredExpenses.length;
+  const paymentModesUsed = new Set(filteredExpenses.map((e) => e.paymentMode)).size;
 
   // Group expenses by payment mode for summary
-  const expensesByMode = expenses?.reduce(
+  const expensesByMode = filteredExpenses.reduce(
     (acc, expense) => {
       acc[expense.paymentMode] = (acc[expense.paymentMode] || 0) + expense.amount;
       return acc;
     },
     {} as Record<string, number>
-  ) || {};
+  );
 
   const handleOpenSheet = (expense?: Expense) => {
     setExpenseToEdit(expense || null);
@@ -162,7 +171,7 @@ export default function ExpensesPage() {
               <CreditCard className="h-4 w-4" />
               <span className="text-sm">Payment Modes</span>
             </div>
-            <p className="text-2xl font-bold">{Object.keys(expensesByMode).length}</p>
+            <p className="text-2xl font-bold">{paymentModesUsed}</p>
             <p className="text-xs text-muted-foreground">modes used</p>
           </CardContent>
         </Card>
@@ -195,12 +204,33 @@ export default function ExpensesPage() {
         <DateFilterSelect value={dateFilter} onValueChange={setDateFilter} />
       </div>
 
+      {/* Payment Mode Filter */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          variant={paymentModeFilter === "all" ? "default" : "outline"}
+          onClick={() => setPaymentModeFilter("all")}
+        >
+          All
+        </Button>
+        {PAYMENT_MODES.map((mode) => (
+          <Button
+            key={mode}
+            size="sm"
+            variant={paymentModeFilter === mode ? "default" : "outline"}
+            onClick={() => setPaymentModeFilter(mode)}
+          >
+            {mode}
+          </Button>
+        ))}
+      </div>
+
       {/* Expenses List */}
       {isLoading ? (
         <ExpenseListSkeleton />
-      ) : expenses && expenses.length > 0 ? (
+      ) : expenses && filteredExpenses.length > 0 ? (
         <div className="space-y-3">
-          {expenses.map((expense) => (
+          {filteredExpenses.map((expense) => (
             <Card key={expense.id}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -239,9 +269,11 @@ export default function ExpensesPage() {
           <Wallet className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">No expenses found</h3>
           <p className="text-muted-foreground mb-4">
-            {dateFilter === "all"
-              ? "Record your first expense to get started"
-              : `No expenses recorded for ${dateFilterLabels[dateFilter].toLowerCase()}`}
+            {paymentModeFilter === "all"
+              ? dateFilter === "all"
+                ? "Record your first expense to get started"
+                : `No expenses recorded for ${dateFilterLabels[dateFilter].toLowerCase()}`
+              : `No ${paymentModeFilter.toLowerCase()} expenses for ${dateFilterLabels[dateFilter].toLowerCase()}`}
           </p>
           <Button onClick={() => handleOpenSheet()}>
             <Plus className="w-4 h-4 mr-2" />

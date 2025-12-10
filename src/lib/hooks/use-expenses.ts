@@ -1,11 +1,12 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Expense, CreateExpenseInput, UpdateExpenseInput } from "@/lib/types";
+import { Expense, CreateExpenseInput, UpdateExpenseInput, PaymentMode } from "@/lib/types";
 
 interface ExpenseFilters {
   startDate?: string;
   endDate?: string;
+  paymentMode?: PaymentMode;
 }
 
 // Fetch expenses with filters
@@ -14,6 +15,7 @@ async function fetchExpenses(filters: ExpenseFilters = {}): Promise<Expense[]> {
 
   if (filters.startDate) params.append("startDate", filters.startDate);
   if (filters.endDate) params.append("endDate", filters.endDate);
+  if (filters.paymentMode) params.append("paymentMode", filters.paymentMode);
 
   const response = await fetch(`/api/expenses?${params.toString()}`);
   if (!response.ok) throw new Error("Failed to fetch expenses");

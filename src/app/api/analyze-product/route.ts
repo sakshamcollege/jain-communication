@@ -43,16 +43,15 @@ export async function POST(request: Request) {
     const auth = await checkAuth();
     if (!auth.authorized) return auth.response;
 
-    const { image } = await request.json(); // Expecting base64 string
+    const { image } = await request.json();
 
     if (!image) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
     }
 
-    // Remove data:image/jpeg;base64, prefix if present
     const base64Image = image.replace(/^data:image\/\w+;base64,/, "");
 
-    // 1. Text Detection (OCR) for specs and description
+    // 1. Text Detection (OCR)
     const [textResult] = await client.textDetection({
       image: { content: base64Image },
     });
@@ -63,62 +62,42 @@ export async function POST(request: Request) {
     const [labelResult] = await client.labelDetection({
       image: { content: base64Image },
     });
-    const labels = labelResult.labelAnnotations?.map((l) => l.description) || [];
+    const labels = labelResult.labelAnnotations?.map((l) => l.description || "") || [];
 
-    // Simple parsing logic (You can make this smarter with Regex)
-    const lines = fullText.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+    // 3. Process Data
+    const lines = cleanAndSplitLines(fullText);
+    const brand = detectBrand(lines, labels);
+    const modelInfo = detectModel(lines, brand);
+    const model = modelInfo?.model;
     
-    // List of common mobile brands to help identify the name
-    const brands = [
-      "Samsung", "Apple", "iPhone", "Xiaomi", "Redmi", "Realme", "Vivo", "Oppo", 
-      "OnePlus", "Motorola", "Nokia", "Google", "Pixel", "Techno", "Infinix", 
-      "Itel", "Poco", "iQOO", "Nothing", "Lava", "Micromax", "Honor", "Huawei", 
-      "Sony", "LG", "Asus", "Lenovo", "Narzo"
-    ];
+    const { ram, storage } = extractRamAndStorage(fullText);
+    const imeis = extractImeis(fullText);
     
-    // 1. Try to find a line containing a brand name
-    let potentialName = lines.find(line => 
-      brands.some(brand => line.toLowerCase().includes(brand.toLowerCase()))
-    );
+    const battery = extractBattery(fullText);
+    const camera = extractCamera(fullText);
+    const refreshRate = extractRefreshRate(fullText);
+    const processor = extractChipset(fullText);
 
-    // 2. If no brand line found, check if any detected label is a brand
-    if (!potentialName) {
-        const brandLabel = labels.find(label => brands.some(b => b.toLowerCase() === label?.toLowerCase()));
-        if (brandLabel) {
-            // If first line doesn't already have the brand, prepend it
-            if (!lines[0]?.toLowerCase().includes(brandLabel.toLowerCase())) {
-                 potentialName = `${brandLabel} ${lines[0] || ""}`;
-            } else {
-                 potentialName = lines[0];
-            }
-        }
-    }
-
-    // 3. Fallback: Use the first line if it's not a spec keyword or garbage
-    if (!potentialName) {
-        const skipKeywords = ["GB", "RAM", "ROM", "mAh", "Camera", "MP", "Screen", "Display", "Processor", "Snapdragon", "Helios", "Dimensity", "Battery", "Volt", "Watt", "Specification", "Features", "Warning"];
-        if (lines[0] && !skipKeywords.some(k => lines[0].includes(k)) && lines[0].length > 2) {
-            potentialName = lines[0];
-        }
-    }
-
-    // Extract Specs
-    const specKeywords = ["GB", "RAM", "ROM", "mAh", "Camera", "MP", "Screen", "Display", "Processor", "Snapdragon", "Helios", "Dimensity", "Hz", "AMOLED", "LCD", "Core", "Android", "iOS", "5G", "4G"];
-    const potentialSpecs = lines
-      .filter(line => specKeywords.some(keyword => line.includes(keyword)))
-      .join("\n");
-
-    // Create Description (Cleaned up full text)
-    // Filter out very short lines which are often OCR noise
-    const description = lines.filter(l => l.length > 3).join("\n");
+    const name = constructProductName(brand, model, ram, storage);
+    const specs = buildSpecsBlock({ ram, storage, battery, camera, refreshRate, processor, imeis });
+    const description = buildDescription(lines, modelInfo?.line);
 
     return NextResponse.json({
       success: true,
       data: {
-        name: potentialName || "", // Return empty if we couldn't find a good name
-        description: description,
-        specs: potentialSpecs,
+        name,
+        description,
+        specs,
         detectedLabels: labels,
+        brand,
+        model,
+        ram,
+        storage,
+        battery,
+        camera,
+        refreshRate,
+        processor,
+        imeiList: imeis
       },
     });
 
@@ -132,4 +111,190 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+// --- Helper Functions ---
+
+const BRANDS = ["samsung","apple","xiaomi","redmi","realme","oppo","vivo","oneplus","nothing","poco","infinix","tecno","nokia","lava","motorola","itel","micromax"];
+
+function cleanAndSplitLines(fullText: string): string[] {
+  return fullText
+    .split("\n")
+    .map(l => l.trim())
+    .filter(l => {
+      if (l.length < 3) return false;
+      const lower = l.toLowerCase();
+      if (lower.includes("customer care") || lower.includes("warning") || lower.includes("mrp")) return false;
+      // Filter out lines that are just digits/slashes unless they look like RAM/ROM (e.g. 8/128)
+      if (/^[\d\/\.\s]+$/.test(l) && !/\d+\/\d+/.test(l)) return false; 
+      return true;
+    });
+}
+
+function detectBrand(lines: string[], labels: string[]): string | undefined {
+  // 1. Check lines for brand name
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase();
+    for (const brand of BRANDS) {
+      if (lowerLine.includes(brand)) {
+        // Return formatted brand (capitalize first letter)
+        return brand.charAt(0).toUpperCase() + brand.slice(1);
+      }
+    }
+  }
+  // 2. Check labels
+  for (const label of labels) {
+    const lowerLabel = label.toLowerCase();
+    for (const brand of BRANDS) {
+      if (lowerLabel.includes(brand)) {
+        return brand.charAt(0).toUpperCase() + brand.slice(1);
+      }
+    }
+  }
+  return undefined;
+}
+
+function detectModel(lines: string[], brand?: string): { model: string, line: string } | undefined {
+  let bestScore = -100;
+  let bestLine = "";
+
+  for (const line of lines) {
+    const score = scoreLineForModel(line, brand);
+    if (score > bestScore) {
+      bestScore = score;
+      bestLine = line;
+    }
+  }
+
+  if (bestScore > 0) {
+    // Clean up the model string
+    let model = bestLine;
+    if (brand) {
+        // Remove brand from model line if present to avoid "Samsung Samsung Galaxy..."
+        const brandRegex = new RegExp(brand, 'gi');
+        model = model.replace(brandRegex, '').trim();
+    }
+    // Remove common noise words from model line
+    model = model.replace(/5g|4g|lte|smartphone|mobile/gi, '').trim();
+    return { model, line: bestLine };
+  }
+  return undefined;
+}
+
+function scoreLineForModel(line: string, brand?: string): number {
+  let score = 0;
+  const lower = line.toLowerCase();
+
+  // +5 if brand is in the line (strong indicator it's the title line)
+  if (brand && lower.includes(brand.toLowerCase())) {
+    score += 5;
+  }
+
+  // +4 for patterns like "C55", "Note 13", "Galaxy S23", "iPhone 14"
+  // Alphanumeric with at least one digit, or specific keywords
+  if (/\b[a-z]+\s?\d{1,4}[a-z]?\b/i.test(line) || /\b(note|galaxy|iphone|redmi|pro|plus|ultra|max|prime|neo)\b/i.test(line)) {
+    score += 4;
+  }
+
+  // -3 for noise words that indicate specs or other info
+  if (/\b(gb|ram|rom|mah|mp|camera|screen|display|processor|android|ios|battery)\b/i.test(line)) {
+    score -= 3;
+  }
+  
+  // Penalize very long lines (likely description)
+  if (line.length > 40) score -= 2;
+
+  return score;
+}
+
+function extractRamAndStorage(text: string): { ram?: string, storage?: string } {
+  let ram: string | undefined;
+  let storage: string | undefined;
+
+  // Pattern 1: "8/128", "8GB/128GB"
+  const slashMatch = text.match(/(\d{1,2})\s?(?:GB)?\s?\/\s?(\d{2,4})\s?(?:GB)?/i);
+  if (slashMatch) {
+    ram = slashMatch[1] + "GB";
+    storage = slashMatch[2] + "GB";
+    return { ram, storage };
+  }
+
+  // Pattern 2: Separate "8GB RAM", "128GB Storage/ROM"
+  const ramMatch = text.match(/(\d{1,2})\s?GB\s?RAM/i);
+  if (ramMatch) ram = ramMatch[1] + "GB";
+
+  const storageMatch = text.match(/(\d{2,4})\s?GB\s?(?:ROM|Storage|Internal)/i);
+  if (storageMatch) storage = storageMatch[1] + "GB";
+
+  return { ram, storage };
+}
+
+function extractImeis(text: string): string[] {
+  const imeis: string[] = [];
+  // Look for 15 digit numbers
+  const matches = text.matchAll(/\b\d{15}\b/g);
+  for (const match of matches) {
+    if (!imeis.includes(match[0])) imeis.push(match[0]);
+  }
+  
+  // Look for "IMEI: xxxx"
+  const imeiLabelMatches = text.matchAll(/IMEI\s?[:#]?\s?(\d{15})/gi);
+  for (const match of imeiLabelMatches) {
+    if (!imeis.includes(match[1])) imeis.push(match[1]);
+  }
+
+  return imeis.slice(0, 2);
+}
+
+function extractBattery(text: string): string | undefined {
+  const match = text.match(/(\d{3,5})\s?mAh/i);
+  return match ? match[1] + "mAh" : undefined;
+}
+
+function extractCamera(text: string): string | undefined {
+  // Look for "50MP", "50+2MP", "50 MP AI Camera"
+  const match = text.match(/(\d{2,3}(?:\+\d{1,3})*)\s?MP/i);
+  return match ? match[1] + "MP" : undefined;
+}
+
+function extractRefreshRate(text: string): string | undefined {
+  const match = text.match(/(\d{2,3})\s?Hz/i);
+  return match ? match[1] + "Hz" : undefined;
+}
+
+function extractChipset(text: string): string | undefined {
+  const match = text.match(/(Snapdragon|Helio|Dimensity|Exynos|Bionic|Unisoc)\s?[\w\d]+/i);
+  return match ? match[0] : undefined;
+}
+
+function buildSpecsBlock(data: { ram?: string, storage?: string, battery?: string, camera?: string, refreshRate?: string, processor?: string, imeis: string[] }): string {
+  const specs = [];
+  if (data.ram && data.storage) specs.push(`Memory: ${data.ram} RAM / ${data.storage} Storage`);
+  else if (data.ram) specs.push(`RAM: ${data.ram}`);
+  else if (data.storage) specs.push(`Storage: ${data.storage}`);
+
+  if (data.processor) specs.push(`Processor: ${data.processor}`);
+  if (data.camera) specs.push(`Camera: ${data.camera}`);
+  if (data.battery) specs.push(`Battery: ${data.battery}`);
+  if (data.refreshRate) specs.push(`Display: ${data.refreshRate}`);
+  
+  if (data.imeis.length > 0) {
+    specs.push(`IMEI: ${data.imeis.join(", ")}`);
+  }
+
+  return specs.join("\n");
+}
+
+function constructProductName(brand?: string, model?: string, ram?: string, storage?: string): string {
+  const parts = [];
+  if (brand) parts.push(brand);
+  if (model) parts.push(model);
+  if (ram && storage) parts.push(`(${ram}/${storage})`);
+  
+  return parts.join(" ");
+}
+
+function buildDescription(lines: string[], modelLine?: string): string {
+  // Filter out the line used for model to avoid duplication at the top
+  return lines.filter(l => l !== modelLine).join("\n");
 }
