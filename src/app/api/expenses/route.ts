@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { PAYMENT_MODES } from "@/lib/types";
+import { PAYMENT_MODES, PaymentMode } from "@/lib/types";
 import { checkAuth } from "@/lib/api-auth";
 
 // GET /api/expenses - List all expenses with filters
@@ -30,7 +30,10 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    if (paymentMode && PAYMENT_MODES.includes(paymentMode)) {
+    const isValidPaymentMode = (value: string): value is PaymentMode =>
+      PAYMENT_MODES.includes(value as PaymentMode);
+
+    if (paymentMode && isValidPaymentMode(paymentMode)) {
       where.paymentMode = paymentMode;
     }
 
