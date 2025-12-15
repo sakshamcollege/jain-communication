@@ -37,6 +37,20 @@ async function createParty(input: { type: PartyType; name: string; phone?: strin
   return res.json();
 }
 
+async function recordPartyPayment(input: {
+  partyId: string;
+  amount: number;
+  note?: string;
+}) {
+  const res = await fetch(`/api/credit-ledger/parties/${input.partyId}/payments`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount: input.amount, note: input.note }),
+  });
+  if (!res.ok) throw new Error("Failed to record payment");
+  return res.json();
+}
+
 export default function CreditLedgerPage() {
   const { data, isLoading, error } = useCreditLedger();
   const queryClient = useQueryClient();
@@ -46,6 +60,12 @@ export default function CreditLedgerPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
 
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [paymentPartyId, setPaymentPartyId] = useState<string | null>(null);
+  const [paymentPartyName, setPaymentPartyName] = useState<string>("");
+  const [paymentAmount, setPaymentAmount] = useState<string>("");
+  const [paymentNote, setPaymentNote] = useState<string>("");
+
   const createPartyMutation = useMutation({
     mutationFn: createParty,
     onSuccess: () => {
@@ -54,6 +74,19 @@ export default function CreditLedgerPage() {
       setName("");
       setPhone("");
       setType("CUSTOMER");
+    },
+  });
+
+  const recordPaymentMutation = useMutation({
+    mutationFn: recordPartyPayment,
+    onSuccess: async (_data, variables) => {
+      await queryClient.invalidateQueries({ queryKey: ["credit-ledger"] });
+      await queryClient.invalidateQueries({ queryKey: ["credit-ledger", variables.partyId] });
+      setPaymentDialogOpen(false);
+      setPaymentPartyId(null);
+      setPaymentPartyName("");
+      setPaymentAmount("");
+      setPaymentNote("");
     },
   });
 
@@ -169,6 +202,90 @@ export default function CreditLedgerPage() {
         </Dialog>
       </div>
 
+      <Dialog
+        open={paymentDialogOpen}
+        onOpenChange={(open) => {
+          setPaymentDialogOpen(open);
+          if (!open) {
+            setPaymentPartyId(null);
+            setPaymentPartyName("");
+            setPaymentAmount("");
+            setPaymentNote("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Record Payment{paymentPartyName ? ` • ${paymentPartyName}` : ""}</DialogTitle>
+          </DialogHeader>
+
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!paymentPartyId) return;
+              const numeric = Number(paymentAmount);
+              if (!numeric || numeric <= 0) return;
+              recordPaymentMutation.mutate({
+                partyId: paymentPartyId,
+                amount: numeric,
+                note: paymentNote.trim() || undefined,
+              });
+            }}
+          >
+            <div className="space-y-2">
+              <Label htmlFor="paymentAmount">Amount *</Label>
+              <Input
+                id="paymentAmount"
+                type="number"
+                min="1"
+                step="0.01"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                placeholder="e.g., 500"
+                autoFocus
+                disabled={recordPaymentMutation.isPending}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="paymentNote">Note (optional)</Label>
+              <Input
+                id="paymentNote"
+                value={paymentNote}
+                onChange={(e) => setPaymentNote(e.target.value)}
+                placeholder="e.g., UPI / Cash"
+                disabled={recordPaymentMutation.isPending}
+              />
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => setPaymentDialogOpen(false)}
+                disabled={recordPaymentMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={
+                  recordPaymentMutation.isPending ||
+                  !paymentPartyId ||
+                  !paymentAmount ||
+                  Number(paymentAmount) <= 0
+                }
+              >
+                {recordPaymentMutation.isPending ? "Saving..." : "Record Payment"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -197,25 +314,37 @@ export default function CreditLedgerPage() {
       ) : data && data.length > 0 ? (
         <div className="space-y-3">
           {data.map((party) => (
-            <Link key={party.id} href={`/credit-ledger/${party.id}`}>
-              <Card className="hover:bg-muted/30 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">{party.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {party.type === "CUSTOMER" ? "Customer" : "Vendor"}
-                        {party.phone ? ` • ${party.phone}` : ""}
-                      </p>
-                    </div>
+            <Card key={party.id} className="hover:bg-muted/30 transition-colors">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <Link href={`/credit-ledger/${party.id}`} className="min-w-0 flex-1">
+                    <p className="font-semibold truncate">{party.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {party.type === "CUSTOMER" ? "Customer" : "Vendor"}
+                      {party.phone ? ` • ${party.phone}` : ""}
+                    </p>
+                  </Link>
+
+                  <div className="flex items-center gap-3 shrink-0">
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">Balance</p>
                       <p className="font-bold">{formatCurrency(party.balance)}</p>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setPaymentPartyId(party.id);
+                        setPaymentPartyName(party.name);
+                        setPaymentDialogOpen(true);
+                      }}
+                    >
+                      Record Payment
+                    </Button>
                   </div>
-                </CardContent>
-              </Card>
-            </Link>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       ) : (
