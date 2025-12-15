@@ -319,7 +319,7 @@ export default function CreditLedgerPage() {
           }
         }}
         title={deletePartyName ? `Delete ${deletePartyName}?` : "Delete party?"}
-        description="This will remove the party from the database. Related ledger transactions will also be removed."
+        description="This will permanently delete the party and all related entries (ledger transactions, credit recharges, and credit expenses)."
         isDeleting={deletePartyMutation.isPending}
         onConfirm={() => {
           if (!deletePartyId) return;

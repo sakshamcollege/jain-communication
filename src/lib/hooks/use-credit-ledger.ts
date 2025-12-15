@@ -63,6 +63,28 @@ async function recordPayment(partyId: string, amount: number, note?: string) {
   return res.json();
 }
 
+async function updateTransaction(input: {
+  transactionId: string;
+  amount?: number;
+  note?: string;
+}) {
+  const res = await fetch(`/api/credit-ledger/transactions/${input.transactionId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ amount: input.amount, note: input.note }),
+  });
+  if (!res.ok) throw new Error("Failed to update transaction");
+  return res.json();
+}
+
+async function deleteTransaction(transactionId: string) {
+  const res = await fetch(`/api/credit-ledger/transactions/${transactionId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete transaction");
+  return res.json();
+}
+
 export function useCreditLedger() {
   return useQuery({
     queryKey: ["credit-ledger"],
@@ -83,6 +105,28 @@ export function useRecordPayment(partyId: string) {
   return useMutation({
     mutationFn: ({ amount, note }: { amount: number; note?: string }) =>
       recordPayment(partyId, amount, note),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["credit-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["credit-ledger", partyId] });
+    },
+  });
+}
+
+export function useUpdateCreditTransaction(partyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateTransaction,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["credit-ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["credit-ledger", partyId] });
+    },
+  });
+}
+
+export function useDeleteCreditTransaction(partyId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (transactionId: string) => deleteTransaction(transactionId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["credit-ledger"] });
       queryClient.invalidateQueries({ queryKey: ["credit-ledger", partyId] });
