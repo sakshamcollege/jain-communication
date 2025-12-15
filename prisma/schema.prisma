@@ -10,6 +10,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum PartyType {
+  CUSTOMER
+  VENDOR
+}
+
+enum CreditTransactionType {
+  CHARGE
+  PAYMENT
+}
+
+enum CreditSourceType {
+  RECHARGE
+  EXPENSE
+  MANUAL
+}
+
 // User model for authentication
 model User {
   id        String   @id @default(uuid())
@@ -70,11 +86,16 @@ model Recharge {
   profit      Float    // Auto-calculated at 3% commission
   description String?  // Optional description
   userId      String?
+  isCredit    Boolean  @default(false)
+  partyId     String?
   createdAt   DateTime @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  party Party? @relation(fields: [partyId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
+  @@index([isCredit])
+  @@index([partyId])
 }
 
 // Stock Movement model for tracking stock history
@@ -102,8 +123,49 @@ model Expense {
   amount      Float    // Expense amount
   paymentMode String   // Payment mode (SBI Card, HDFC Card, etc.)
   description String   // What the expense was made for
+  isCredit    Boolean  @default(false)
+  partyId     String?
   createdAt   DateTime @default(now())
+
+  party Party? @relation(fields: [partyId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
   @@index([paymentMode])
+  @@index([isCredit])
+  @@index([partyId])
+}
+
+model Party {
+  id             String            @id @default(uuid())
+  type           PartyType
+  name           String
+  normalizedName String
+  phone          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  transactions CreditTransaction[]
+  recharges    Recharge[]
+  expenses     Expense[]
+
+  @@unique([type, normalizedName])
+  @@index([type])
+  @@index([name])
+}
+
+model CreditTransaction {
+  id        String                @id @default(uuid())
+  partyId   String
+  type      CreditTransactionType
+  source    CreditSourceType
+  sourceId  String?
+  amount    Float
+  note      String?
+  createdAt DateTime              @default(now())
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@index([partyId, createdAt])
+  @@index([source, sourceId])
+  @@unique([source, sourceId, type])
 }

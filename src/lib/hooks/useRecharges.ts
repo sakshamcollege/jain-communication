@@ -8,12 +8,17 @@ export interface Recharge {
   amount: number;
   profit: number;
   description: string | null;
+  isCredit?: boolean;
+  partyId?: string | null;
   createdAt: string;
 }
 
 export interface CreateRechargeInput {
   amount: number;
   description?: string;
+  isCredit?: boolean;
+  partyName?: string;
+  partyPhone?: string;
 }
 
 interface RechargeFilters {

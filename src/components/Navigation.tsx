@@ -12,6 +12,7 @@ import {
   Smartphone,
   History,
   Wallet,
+  BookOpen,
   LogOut,
   User as UserIcon,
   UserCog,
@@ -29,6 +30,7 @@ const navItems = [
   { href: "/sales", label: "Sales", icon: ShoppingCart },
   { href: "/recharges", label: "Recharges", icon: Smartphone },
   { href: "/expenses", label: "Expenses", icon: Wallet },
+  { href: "/credit-ledger", label: "Credit Ledger", icon: BookOpen },
   { href: "/stock-history", label: "Stock History", icon: History },
   { href: "/reports", label: "Reports", icon: BarChart3 },
 ];

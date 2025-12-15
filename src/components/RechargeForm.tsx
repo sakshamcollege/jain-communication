@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,8 +17,11 @@ interface RechargeFormProps {
 }
 
 export function RechargeForm({ onSuccess, onCancel, editRecharge }: RechargeFormProps) {
-  const [amount, setAmount] = useState("");
-  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState(() => (editRecharge ? editRecharge.amount.toString() : ""));
+  const [description, setDescription] = useState(() => (editRecharge ? editRecharge.description || "" : ""));
+  const [isCredit, setIsCredit] = useState(() => Boolean(editRecharge?.isCredit));
+  const [partyName, setPartyName] = useState("");
+  const [partyPhone, setPartyPhone] = useState("");
 
   const createRecharge = useCreateRecharge();
   const updateRecharge = useUpdateRecharge();
@@ -27,17 +30,6 @@ export function RechargeForm({ onSuccess, onCancel, editRecharge }: RechargeForm
   const isPending = createRecharge.isPending || updateRecharge.isPending;
 
   const calculatedProfit = amount ? (parseFloat(amount) * COMMISSION_PERCENT) / 100 : 0;
-
-  // Populate form when editing
-  useEffect(() => {
-    if (editRecharge) {
-      setAmount(editRecharge.amount.toString());
-      setDescription(editRecharge.description || "");
-    } else {
-      setAmount("");
-      setDescription("");
-    }
-  }, [editRecharge]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,15 +47,30 @@ export function RechargeForm({ onSuccess, onCancel, editRecharge }: RechargeForm
           description: description || undefined,
         });
       } else {
+        if (isCredit && partyName.trim().length < 2) {
+          alert("Please enter customer name for credit recharge");
+          return;
+        }
+
         await createRecharge.mutateAsync({
           amount: parseFloat(amount),
           description: description || undefined,
+          ...(isCredit
+            ? {
+                isCredit: true,
+                partyName: partyName.trim(),
+                partyPhone: partyPhone.trim() || undefined,
+              }
+            : { isCredit: false }),
         });
       }
 
       // Reset form
       setAmount("");
       setDescription("");
+      setIsCredit(false);
+      setPartyName("");
+      setPartyPhone("");
 
       onSuccess?.();
     } catch (error) {
@@ -102,6 +109,54 @@ export function RechargeForm({ onSuccess, onCancel, editRecharge }: RechargeForm
           disabled={isPending}
         />
       </div>
+
+      {/* Credit Toggle (create only) */}
+      {!isEditing && (
+        <div className="space-y-3 rounded-lg border p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">On Credit</p>
+              <p className="text-xs text-muted-foreground">Track this recharge under a customer</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsCredit((v) => !v)}
+              className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+              disabled={isPending}
+              aria-pressed={isCredit}
+            >
+              {isCredit ? "Yes" : "No"}
+            </button>
+          </div>
+
+          {isCredit && (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="partyName">Customer Name *</Label>
+                <Input
+                  id="partyName"
+                  type="text"
+                  value={partyName}
+                  onChange={(e) => setPartyName(e.target.value)}
+                  placeholder="e.g., Rahul"
+                  disabled={isPending}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="partyPhone">Phone (optional)</Label>
+                <Input
+                  id="partyPhone"
+                  type="tel"
+                  value={partyPhone}
+                  onChange={(e) => setPartyPhone(e.target.value)}
+                  placeholder="e.g., 9876543210"
+                  disabled={isPending}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Profit Preview */}
       {amount && parseFloat(amount) > 0 && (

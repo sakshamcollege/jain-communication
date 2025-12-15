@@ -15,7 +15,12 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { amount, description } = body;
+    const { amount, description } = body as {
+      amount?: number;
+      description?: string;
+      isCredit?: boolean;
+      partyName?: string;
+    };
 
     // Check if recharge exists
     const existingRecharge = await prisma.recharge.findUnique({
@@ -26,6 +31,13 @@ export async function PUT(
       return NextResponse.json(
         { error: "Recharge not found" },
         { status: 404 }
+      );
+    }
+
+    if (body?.isCredit !== undefined || body?.partyName !== undefined) {
+      return NextResponse.json(
+        { error: "Credit status/customer cannot be changed after creation" },
+        { status: 400 }
       );
     }
 
@@ -53,6 +65,20 @@ export async function PUT(
       where: { id },
       data: updateData,
     });
+
+    if ((amount !== undefined || description !== undefined) && existingRecharge.isCredit) {
+      await prisma.creditTransaction.updateMany({
+        where: {
+          source: "RECHARGE",
+          sourceId: id,
+          type: "CHARGE",
+        },
+        data: {
+          ...(amount !== undefined ? { amount: Number(amount) } : {}),
+          ...(description !== undefined ? { note: description || null } : {}),
+        },
+      });
+    }
 
     return NextResponse.json(recharge);
   } catch (error) {
@@ -87,9 +113,21 @@ export async function DELETE(
       );
     }
 
-    // Delete the recharge
-    await prisma.recharge.delete({
-      where: { id },
+    await prisma.$transaction(async (tx) => {
+      if (recharge.isCredit) {
+        await tx.creditTransaction.deleteMany({
+          where: {
+            source: "RECHARGE",
+            sourceId: id,
+            type: "CHARGE",
+          },
+        });
+      }
+
+      // Delete the recharge
+      await tx.recharge.delete({
+        where: { id },
+      });
     });
 
     return NextResponse.json({

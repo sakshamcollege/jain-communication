@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,28 +23,20 @@ interface ExpenseFormProps {
 }
 
 export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormProps) {
-  const [amount, setAmount] = useState("");
-  const [paymentMode, setPaymentMode] = useState<PaymentMode | "">("");
-  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState(() => (editExpense ? editExpense.amount.toString() : ""));
+  const [paymentMode, setPaymentMode] = useState<PaymentMode | "">(
+    () => (editExpense ? editExpense.paymentMode : "")
+  );
+  const [description, setDescription] = useState(() => (editExpense ? editExpense.description : ""));
+  const [isCredit, setIsCredit] = useState(() => Boolean(editExpense?.isCredit) || editExpense?.paymentMode === "Credit");
+  const [partyName, setPartyName] = useState("");
+  const [partyPhone, setPartyPhone] = useState("");
 
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
 
   const isEditing = !!editExpense;
   const isPending = createExpense.isPending || updateExpense.isPending;
-
-  // Populate form when editing
-  useEffect(() => {
-    if (editExpense) {
-      setAmount(editExpense.amount.toString());
-      setPaymentMode(editExpense.paymentMode);
-      setDescription(editExpense.description);
-    } else {
-      setAmount("");
-      setPaymentMode("");
-      setDescription("");
-    }
-  }, [editExpense]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,11 +45,17 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
       return;
     }
 
-    if (!paymentMode) {
+    const finalPaymentMode = isCredit ? ("Credit" as PaymentMode) : (paymentMode as PaymentMode);
+
+    if (!finalPaymentMode) {
       return;
     }
 
     if (!description.trim()) {
+      return;
+    }
+
+    if (!editExpense && isCredit && partyName.trim().length < 2) {
       return;
     }
 
@@ -66,7 +64,7 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
         await updateExpense.mutateAsync({
           id: editExpense.id,
           amount: parseFloat(amount),
-          paymentMode: paymentMode as PaymentMode,
+          paymentMode: finalPaymentMode,
           description: description.trim(),
         });
         
@@ -80,14 +78,24 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
         // Optimistic update - fire and forget
         createExpense.mutate({
           amount: parseFloat(amount),
-          paymentMode: paymentMode as PaymentMode,
+          paymentMode: finalPaymentMode,
           description: description.trim(),
+          ...(isCredit
+            ? {
+                isCredit: true,
+                partyName: partyName.trim(),
+                partyPhone: partyPhone.trim() || undefined,
+              }
+            : { isCredit: false }),
         });
 
         // Close immediately
         setAmount("");
         setPaymentMode("");
         setDescription("");
+        setIsCredit(false);
+        setPartyName("");
+        setPartyPhone("");
 
         onSuccess?.();
       }
@@ -98,6 +106,67 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Credit Toggle (create only) */}
+      {!isEditing && (
+        <div className="space-y-3 rounded-lg border p-4">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-medium">Bought on Credit</p>
+              <p className="text-xs text-muted-foreground">Track this expense under a vendor</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsCredit((v) => {
+                  const next = !v;
+                  if (next) setPaymentMode("Credit");
+                  else setPaymentMode("");
+                  return next;
+                });
+              }}
+              className="rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
+              disabled={isPending}
+              aria-pressed={isCredit}
+            >
+              {isCredit ? "Yes" : "No"}
+            </button>
+          </div>
+
+          {isCredit && (
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="vendorName" className="text-sm font-medium">
+                  Vendor Name *
+                </Label>
+                <Input
+                  id="vendorName"
+                  type="text"
+                  value={partyName}
+                  onChange={(e) => setPartyName(e.target.value)}
+                  placeholder="e.g., Stationery Shop"
+                  disabled={isPending}
+                  className="h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="vendorPhone" className="text-sm font-medium">
+                  Phone (optional)
+                </Label>
+                <Input
+                  id="vendorPhone"
+                  type="tel"
+                  value={partyPhone}
+                  onChange={(e) => setPartyPhone(e.target.value)}
+                  placeholder="e.g., 9876543210"
+                  disabled={isPending}
+                  className="h-11"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Payment Mode */}
       <div className="space-y-2">
         <Label htmlFor="paymentMode" className="text-sm font-medium">
@@ -106,7 +175,7 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
         <Select
           value={paymentMode}
           onValueChange={(v) => setPaymentMode(v as PaymentMode)}
-          disabled={isPending}
+          disabled={isPending || (!isEditing && isCredit)}
         >
           <SelectTrigger className="h-11">
             <SelectValue placeholder="Select payment mode" />
@@ -189,8 +258,9 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
           disabled={
             !amount ||
             parseFloat(amount) <= 0 ||
-            !paymentMode ||
+            !(isCredit ? true : paymentMode) ||
             !description.trim() ||
+            (!isEditing && isCredit && partyName.trim().length < 2) ||
             isPending
           }
         >

@@ -3,6 +3,10 @@ import prisma from "@/lib/prisma";
 import { PAYMENT_MODES, PaymentMode } from "@/lib/types";
 import { checkAuth } from "@/lib/api-auth";
 
+function normalizeName(name: string) {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
+
 // GET /api/expenses - List all expenses with filters
 export async function GET(request: NextRequest) {
   try {
@@ -59,7 +63,14 @@ export async function POST(request: NextRequest) {
     if (!auth.authorized) return auth.response;
 
     const body = await request.json();
-    const { amount, paymentMode, description } = body;
+    const { amount, paymentMode, description, isCredit, partyName, partyPhone } = body as {
+      amount?: number;
+      paymentMode?: string;
+      description?: string;
+      isCredit?: boolean;
+      partyName?: string;
+      partyPhone?: string;
+    };
 
     // Validate required fields
     if (!amount || Number(amount) <= 0) {
@@ -69,7 +80,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!paymentMode || !PAYMENT_MODES.includes(paymentMode)) {
+    const shouldCreateCredit = Boolean(isCredit);
+    const finalPaymentMode = shouldCreateCredit ? "Credit" : paymentMode;
+
+    if (!finalPaymentMode || !PAYMENT_MODES.includes(finalPaymentMode as PaymentMode)) {
       return NextResponse.json(
         { error: "Valid payment mode is required" },
         { status: 400 }
@@ -83,11 +97,70 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (shouldCreateCredit) {
+      if (!partyName || partyName.trim().length < 2) {
+        return NextResponse.json(
+          { error: "Vendor name is required for credit expenses" },
+          { status: 400 }
+        );
+      }
+
+      const normalizedName = normalizeName(partyName);
+
+      const expense = await prisma.$transaction(async (tx) => {
+        const party = await tx.party.upsert({
+          where: {
+            type_normalizedName: {
+              type: "VENDOR",
+              normalizedName,
+            },
+          },
+          update: {
+            name: partyName.trim(),
+            phone: partyPhone?.trim() || null,
+          },
+          create: {
+            type: "VENDOR",
+            name: partyName.trim(),
+            normalizedName,
+            phone: partyPhone?.trim() || null,
+          },
+        });
+
+        const created = await tx.expense.create({
+          data: {
+            amount: Number(amount),
+            paymentMode: "Credit",
+            description: description.trim(),
+            isCredit: true,
+            partyId: party.id,
+          },
+        });
+
+        await tx.creditTransaction.create({
+          data: {
+            partyId: party.id,
+            type: "CHARGE",
+            source: "EXPENSE",
+            sourceId: created.id,
+            amount: Number(amount),
+            note: description.trim(),
+          },
+        });
+
+        return created;
+      });
+
+      return NextResponse.json(expense, { status: 201 });
+    }
+
     const expense = await prisma.expense.create({
       data: {
         amount: Number(amount),
-        paymentMode,
+        paymentMode: finalPaymentMode,
         description: description.trim(),
+        isCredit: false,
+        partyId: null,
       },
     });
 

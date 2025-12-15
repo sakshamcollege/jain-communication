@@ -179,6 +179,7 @@ export type ProductCategory = (typeof PRODUCT_CATEGORIES)[number];
 // Expense types
 export const PAYMENT_MODES = [
   "Cash",
+  "Credit",
   "SBI Card",
   "HDFC Card",
   "Axis Card",
@@ -193,6 +194,8 @@ export interface Expense {
   amount: number;
   paymentMode: PaymentMode;
   description: string;
+  isCredit?: boolean;
+  partyId?: string | null;
   createdAt: Date;
 }
 
@@ -200,6 +203,9 @@ export interface CreateExpenseInput {
   amount: number;
   paymentMode: PaymentMode;
   description: string;
+  isCredit?: boolean;
+  partyName?: string;
+  partyPhone?: string;
 }
 
 export interface UpdateExpenseInput extends Partial<CreateExpenseInput> {

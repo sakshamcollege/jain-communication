@@ -87,6 +87,7 @@ function RechargesPageContent() {
               </DialogTitle>
             </DialogHeader>
             <RechargeForm
+              key={rechargeToEdit?.id || "new"}
               editRecharge={rechargeToEdit}
               onSuccess={handleCloseDialog}
               onCancel={handleCloseDialog}

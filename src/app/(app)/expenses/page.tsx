@@ -142,6 +142,7 @@ export default function ExpensesPage() {
             </SheetHeader>
             <div className="px-6 pb-6">
               <ExpenseForm
+                key={expenseToEdit?.id || "new"}
                 editExpense={expenseToEdit}
                 onSuccess={handleCloseSheet}
                 onCancel={handleCloseSheet}

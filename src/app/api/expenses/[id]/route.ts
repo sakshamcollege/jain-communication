@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { PAYMENT_MODES } from "@/lib/types";
+import { PAYMENT_MODES, PaymentMode } from "@/lib/types";
 import { checkAuth } from "@/lib/api-auth";
+
+const isValidPaymentMode = (value: string): value is PaymentMode =>
+  PAYMENT_MODES.includes(value as PaymentMode);
 
 // PUT /api/expenses/[id] - Update an expense record
 export async function PUT(
@@ -14,7 +17,13 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { amount, paymentMode, description } = body;
+    const { amount, paymentMode, description } = body as {
+      amount?: number;
+      paymentMode?: string;
+      description?: string;
+      isCredit?: boolean;
+      partyName?: string;
+    };
 
     // Check if expense exists
     const existingExpense = await prisma.expense.findUnique({
@@ -25,6 +34,13 @@ export async function PUT(
       return NextResponse.json(
         { error: "Expense not found" },
         { status: 404 }
+      );
+    }
+
+    if (body?.isCredit !== undefined || body?.partyName !== undefined) {
+      return NextResponse.json(
+        { error: "Credit status/vendor cannot be changed after creation" },
+        { status: 400 }
       );
     }
 
@@ -42,7 +58,14 @@ export async function PUT(
     }
 
     if (paymentMode !== undefined) {
-      if (!PAYMENT_MODES.includes(paymentMode)) {
+      if (existingExpense.isCredit) {
+        return NextResponse.json(
+          { error: "Payment mode cannot be changed for credit expenses" },
+          { status: 400 }
+        );
+      }
+
+      if (!isValidPaymentMode(paymentMode)) {
         return NextResponse.json(
           { error: "Valid payment mode is required" },
           { status: 400 }
@@ -65,6 +88,20 @@ export async function PUT(
       where: { id },
       data: updateData,
     });
+
+    if ((amount !== undefined || description !== undefined) && existingExpense.isCredit) {
+      await prisma.creditTransaction.updateMany({
+        where: {
+          source: "EXPENSE",
+          sourceId: id,
+          type: "CHARGE",
+        },
+        data: {
+          ...(amount !== undefined ? { amount: Number(amount) } : {}),
+          ...(description !== undefined ? { note: description?.trim() || null } : {}),
+        },
+      });
+    }
 
     return NextResponse.json(expense);
   } catch (error) {
@@ -99,9 +136,21 @@ export async function DELETE(
       );
     }
 
-    // Delete the expense
-    await prisma.expense.delete({
-      where: { id },
+    await prisma.$transaction(async (tx) => {
+      if (expense.isCredit) {
+        await tx.creditTransaction.deleteMany({
+          where: {
+            source: "EXPENSE",
+            sourceId: id,
+            type: "CHARGE",
+          },
+        });
+      }
+
+      // Delete the expense
+      await tx.expense.delete({
+        where: { id },
+      });
     });
 
     return NextResponse.json({
