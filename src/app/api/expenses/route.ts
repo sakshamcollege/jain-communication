@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { PAYMENT_MODES, PaymentMode } from "@/lib/types";
 import { checkAuth } from "@/lib/api-auth";
+import type { Prisma } from "@prisma/client";
 
 function normalizeName(name: string) {
   return name.trim().replace(/\s+/g, " ").toLowerCase();
@@ -63,11 +64,12 @@ export async function POST(request: NextRequest) {
     if (!auth.authorized) return auth.response;
 
     const body = await request.json();
-    const { amount, paymentMode, description, isCredit, partyName, partyPhone } = body as {
+    const { amount, paymentMode, description, isCredit, partyId, partyName, partyPhone } = body as {
       amount?: number;
       paymentMode?: string;
       description?: string;
       isCredit?: boolean;
+      partyId?: string;
       partyName?: string;
       partyPhone?: string;
     };
@@ -98,46 +100,63 @@ export async function POST(request: NextRequest) {
     }
 
     if (shouldCreateCredit) {
-      if (!partyName || partyName.trim().length < 2) {
-        return NextResponse.json(
-          { error: "Vendor name is required for credit expenses" },
-          { status: 400 }
-        );
-      }
+      const expense = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const txAny = tx as unknown as {
+          party: any;
+          expense: any;
+          creditTransaction: any;
+        };
 
-      const normalizedName = normalizeName(partyName);
+        let party:
+          | { id: string; type: "CUSTOMER" | "VENDOR" }
+          | null = null;
 
-      const expense = await prisma.$transaction(async (tx) => {
-        const party = await tx.party.upsert({
-          where: {
-            type_normalizedName: {
-              type: "VENDOR",
-              normalizedName,
+        if (partyId) {
+          party = await txAny.party.findUnique({ where: { id: partyId } });
+          if (!party || party.type !== "VENDOR") {
+            throw new Error("Invalid vendor partyId");
+          }
+        } else {
+          if (!partyName || partyName.trim().length < 2) {
+            throw new Error("Vendor name is required for credit expenses");
+          }
+
+          const normalizedName = normalizeName(partyName);
+          party = await txAny.party.upsert({
+            where: {
+              type_normalizedName: {
+                type: "VENDOR",
+                normalizedName,
+              },
             },
-          },
-          update: {
-            name: partyName.trim(),
-            phone: partyPhone?.trim() || null,
-          },
-          create: {
-            type: "VENDOR",
-            name: partyName.trim(),
-            normalizedName,
-            phone: partyPhone?.trim() || null,
-          },
-        });
+            update: {
+              name: partyName.trim(),
+              phone: partyPhone?.trim() || null,
+            },
+            create: {
+              type: "VENDOR",
+              name: partyName.trim(),
+              normalizedName,
+              phone: partyPhone?.trim() || null,
+            },
+          });
+        }
 
-        const created = await tx.expense.create({
+        if (!party) {
+          throw new Error("Failed to resolve vendor party");
+        }
+
+        const created = await txAny.expense.create({
           data: {
             amount: Number(amount),
             paymentMode: "Credit",
             description: description.trim(),
             isCredit: true,
             partyId: party.id,
-          },
+          } as any,
         });
 
-        await tx.creditTransaction.create({
+        await txAny.creditTransaction.create({
           data: {
             partyId: party.id,
             type: "CHARGE",
@@ -145,7 +164,7 @@ export async function POST(request: NextRequest) {
             sourceId: created.id,
             amount: Number(amount),
             note: description.trim(),
-          },
+          } as any,
         });
 
         return created;
@@ -161,7 +180,7 @@ export async function POST(request: NextRequest) {
         description: description.trim(),
         isCredit: false,
         partyId: null,
-      },
+      } as any,
     });
 
     return NextResponse.json(expense, { status: 201 });

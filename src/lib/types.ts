@@ -204,6 +204,7 @@ export interface CreateExpenseInput {
   paymentMode: PaymentMode;
   description: string;
   isCredit?: boolean;
+  partyId?: string;
   partyName?: string;
   partyPhone?: string;
 }

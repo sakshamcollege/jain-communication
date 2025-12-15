@@ -17,6 +17,7 @@ export interface CreateRechargeInput {
   amount: number;
   description?: string;
   isCredit?: boolean;
+  partyId?: string;
   partyName?: string;
   partyPhone?: string;
 }

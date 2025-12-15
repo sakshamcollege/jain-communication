@@ -4,7 +4,15 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCreateRecharge, useUpdateRecharge, Recharge } from "@/lib/hooks/useRecharges";
+import { useParties } from "@/lib/hooks";
 import { Loader2, Smartphone, Zap, Save } from "lucide-react";
 import { formatCurrency } from "@/lib/helpers";
 
@@ -20,8 +28,11 @@ export function RechargeForm({ onSuccess, onCancel, editRecharge }: RechargeForm
   const [amount, setAmount] = useState(() => (editRecharge ? editRecharge.amount.toString() : ""));
   const [description, setDescription] = useState(() => (editRecharge ? editRecharge.description || "" : ""));
   const [isCredit, setIsCredit] = useState(() => Boolean(editRecharge?.isCredit));
+  const [partyId, setPartyId] = useState<string>("");
   const [partyName, setPartyName] = useState("");
   const [partyPhone, setPartyPhone] = useState("");
+
+  const { data: parties } = useParties("CUSTOMER");
 
   const createRecharge = useCreateRecharge();
   const updateRecharge = useUpdateRecharge();
@@ -47,7 +58,7 @@ export function RechargeForm({ onSuccess, onCancel, editRecharge }: RechargeForm
           description: description || undefined,
         });
       } else {
-        if (isCredit && partyName.trim().length < 2) {
+        if (isCredit && !partyId && partyName.trim().length < 2) {
           alert("Please enter customer name for credit recharge");
           return;
         }
@@ -58,8 +69,12 @@ export function RechargeForm({ onSuccess, onCancel, editRecharge }: RechargeForm
           ...(isCredit
             ? {
                 isCredit: true,
-                partyName: partyName.trim(),
-                partyPhone: partyPhone.trim() || undefined,
+                ...(partyId
+                  ? { partyId }
+                  : {
+                      partyName: partyName.trim(),
+                      partyPhone: partyPhone.trim() || undefined,
+                    }),
               }
             : { isCredit: false }),
         });
@@ -69,6 +84,7 @@ export function RechargeForm({ onSuccess, onCancel, editRecharge }: RechargeForm
       setAmount("");
       setDescription("");
       setIsCredit(false);
+      setPartyId("");
       setPartyName("");
       setPartyPhone("");
 
@@ -132,6 +148,35 @@ export function RechargeForm({ onSuccess, onCancel, editRecharge }: RechargeForm
           {isCredit && (
             <div className="space-y-3">
               <div className="space-y-2">
+                <Label>Customer</Label>
+                <Select
+                  value={partyId || "new"}
+                  onValueChange={(v) => {
+                    if (v === "new") {
+                      setPartyId("");
+                      return;
+                    }
+                    setPartyId(v);
+                    setPartyName("");
+                    setPartyPhone("");
+                  }}
+                  disabled={isPending}
+                >
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select existing customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new">New customer…</SelectItem>
+                    {(parties || []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}{p.phone ? ` • ${p.phone}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="partyName">Customer Name *</Label>
                 <Input
                   id="partyName"
@@ -139,7 +184,7 @@ export function RechargeForm({ onSuccess, onCancel, editRecharge }: RechargeForm
                   value={partyName}
                   onChange={(e) => setPartyName(e.target.value)}
                   placeholder="e.g., Rahul"
-                  disabled={isPending}
+                  disabled={isPending || Boolean(partyId)}
                 />
               </div>
               <div className="space-y-2">
@@ -150,7 +195,7 @@ export function RechargeForm({ onSuccess, onCancel, editRecharge }: RechargeForm
                   value={partyPhone}
                   onChange={(e) => setPartyPhone(e.target.value)}
                   placeholder="e.g., 9876543210"
-                  disabled={isPending}
+                  disabled={isPending || Boolean(partyId)}
                 />
               </div>
             </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { checkAuth } from "@/lib/api-auth";
+import type { Prisma } from "@prisma/client";
 
 const RECHARGE_COMMISSION_PERCENT = 3;
 
@@ -56,10 +57,11 @@ export async function POST(request: NextRequest) {
     if (!auth.authorized) return auth.response;
 
     const body = await request.json();
-    const { amount, description, isCredit, partyName, partyPhone } = body as {
+    const { amount, description, isCredit, partyId, partyName, partyPhone } = body as {
       amount?: number;
       description?: string;
       isCredit?: boolean;
+      partyId?: string;
       partyName?: string;
       partyPhone?: string;
     };
@@ -82,36 +84,53 @@ export async function POST(request: NextRequest) {
     const shouldCreateCredit = Boolean(isCredit);
 
     if (shouldCreateCredit) {
-      if (!partyName || partyName.trim().length < 2) {
-        return NextResponse.json(
-          { error: "Customer name is required for credit recharges" },
-          { status: 400 }
-        );
-      }
+      const recharge = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const txAny = tx as unknown as {
+          party: any;
+          recharge: any;
+          creditTransaction: any;
+        };
 
-      const normalizedName = normalizeName(partyName);
+        let party:
+          | { id: string; type: "CUSTOMER" | "VENDOR" }
+          | null = null;
 
-      const recharge = await prisma.$transaction(async (tx) => {
-        const party = await tx.party.upsert({
-          where: {
-            type_normalizedName: {
-              type: "CUSTOMER",
-              normalizedName,
+        if (partyId) {
+          party = await txAny.party.findUnique({ where: { id: partyId } });
+          if (!party || party.type !== "CUSTOMER") {
+            throw new Error("Invalid customer partyId");
+          }
+        } else {
+          if (!partyName || partyName.trim().length < 2) {
+            throw new Error("Customer name is required for credit recharges");
+          }
+
+          const normalizedName = normalizeName(partyName);
+          party = await txAny.party.upsert({
+            where: {
+              type_normalizedName: {
+                type: "CUSTOMER",
+                normalizedName,
+              },
             },
-          },
-          update: {
-            name: partyName.trim(),
-            phone: partyPhone?.trim() || null,
-          },
-          create: {
-            type: "CUSTOMER",
-            name: partyName.trim(),
-            normalizedName,
-            phone: partyPhone?.trim() || null,
-          },
-        });
+            update: {
+              name: partyName.trim(),
+              phone: partyPhone?.trim() || null,
+            },
+            create: {
+              type: "CUSTOMER",
+              name: partyName.trim(),
+              normalizedName,
+              phone: partyPhone?.trim() || null,
+            },
+          });
+        }
 
-        const created = await tx.recharge.create({
+        if (!party) {
+          throw new Error("Failed to resolve customer party");
+        }
+
+        const created = await txAny.recharge.create({
           data: {
             amount: numericAmount,
             profit,
@@ -119,10 +138,10 @@ export async function POST(request: NextRequest) {
             userId,
             isCredit: true,
             partyId: party.id,
-          },
+          } as any,
         });
 
-        await tx.creditTransaction.create({
+        await txAny.creditTransaction.create({
           data: {
             partyId: party.id,
             type: "CHARGE",
@@ -130,7 +149,7 @@ export async function POST(request: NextRequest) {
             sourceId: created.id,
             amount: numericAmount,
             note: description || null,
-          },
+          } as any,
         });
 
         return created;
@@ -147,7 +166,7 @@ export async function POST(request: NextRequest) {
         userId,
         isCredit: false,
         partyId: null,
-      },
+      } as any,
     });
 
     return NextResponse.json(recharge, { status: 201 });

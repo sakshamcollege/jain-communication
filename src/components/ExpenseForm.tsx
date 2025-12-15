@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useCreateExpense, useUpdateExpense } from "@/lib/hooks";
+import { useParties } from "@/lib/hooks";
 import { PAYMENT_MODES, PaymentMode, Expense } from "@/lib/types";
 import { Loader2, CreditCard, Save } from "lucide-react";
 import { formatCurrency } from "@/lib/helpers";
@@ -29,8 +30,11 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
   );
   const [description, setDescription] = useState(() => (editExpense ? editExpense.description : ""));
   const [isCredit, setIsCredit] = useState(() => Boolean(editExpense?.isCredit) || editExpense?.paymentMode === "Credit");
+  const [partyId, setPartyId] = useState<string>("");
   const [partyName, setPartyName] = useState("");
   const [partyPhone, setPartyPhone] = useState("");
+
+  const { data: vendors } = useParties("VENDOR");
 
   const createExpense = useCreateExpense();
   const updateExpense = useUpdateExpense();
@@ -55,7 +59,7 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
       return;
     }
 
-    if (!editExpense && isCredit && partyName.trim().length < 2) {
+    if (!editExpense && isCredit && !partyId && partyName.trim().length < 2) {
       return;
     }
 
@@ -83,8 +87,12 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
           ...(isCredit
             ? {
                 isCredit: true,
-                partyName: partyName.trim(),
-                partyPhone: partyPhone.trim() || undefined,
+                ...(partyId
+                  ? { partyId }
+                  : {
+                      partyName: partyName.trim(),
+                      partyPhone: partyPhone.trim() || undefined,
+                    }),
               }
             : { isCredit: false }),
         });
@@ -94,6 +102,7 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
         setPaymentMode("");
         setDescription("");
         setIsCredit(false);
+        setPartyId("");
         setPartyName("");
         setPartyPhone("");
 
@@ -135,6 +144,35 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
           {isCredit && (
             <div className="space-y-3">
               <div className="space-y-2">
+                <Label className="text-sm font-medium">Vendor</Label>
+                <Select
+                  value={partyId || "new"}
+                  onValueChange={(v) => {
+                    if (v === "new") {
+                      setPartyId("");
+                      return;
+                    }
+                    setPartyId(v);
+                    setPartyName("");
+                    setPartyPhone("");
+                  }}
+                  disabled={isPending}
+                >
+                  <SelectTrigger className="h-11">
+                    <SelectValue placeholder="Select existing vendor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="new">New vendor…</SelectItem>
+                    {(vendors || []).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name}{p.phone ? ` • ${p.phone}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
                 <Label htmlFor="vendorName" className="text-sm font-medium">
                   Vendor Name *
                 </Label>
@@ -144,7 +182,7 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
                   value={partyName}
                   onChange={(e) => setPartyName(e.target.value)}
                   placeholder="e.g., Stationery Shop"
-                  disabled={isPending}
+                  disabled={isPending || Boolean(partyId)}
                   className="h-11"
                 />
               </div>
@@ -158,7 +196,7 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
                   value={partyPhone}
                   onChange={(e) => setPartyPhone(e.target.value)}
                   placeholder="e.g., 9876543210"
-                  disabled={isPending}
+                  disabled={isPending || Boolean(partyId)}
                   className="h-11"
                 />
               </div>
@@ -260,7 +298,7 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
             parseFloat(amount) <= 0 ||
             !(isCredit ? true : paymentMode) ||
             !description.trim() ||
-            (!isEditing && isCredit && partyName.trim().length < 2) ||
+            (!isEditing && isCredit && !partyId && partyName.trim().length < 2) ||
             isPending
           }
         >
