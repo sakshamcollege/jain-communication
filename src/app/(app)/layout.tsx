@@ -8,7 +8,12 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  let session = null;
+  try {
+    session = await getServerSession(authOptions);
+  } catch (error) {
+    console.error("Failed to load session:", error);
+  }
 
   if (session?.user?.role === "BUYER") {
     redirect("/shopping");

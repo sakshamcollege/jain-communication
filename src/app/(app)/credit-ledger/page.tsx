@@ -13,6 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
 import {
   Select,
   SelectContent,
@@ -23,7 +24,7 @@ import {
 import { formatCurrency } from "@/lib/helpers";
 import { useCreditLedger } from "@/lib/hooks";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { BookOpen, Plus, Users, Truck } from "lucide-react";
+import { BookOpen, Plus, Users, Truck, Trash2 } from "lucide-react";
 
 type PartyType = "CUSTOMER" | "VENDOR";
 
@@ -51,6 +52,14 @@ async function recordPartyPayment(input: {
   return res.json();
 }
 
+async function deleteParty(partyId: string) {
+  const res = await fetch(`/api/parties/${partyId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) throw new Error("Failed to delete party");
+  return res.json();
+}
+
 export default function CreditLedgerPage() {
   const { data, isLoading, error } = useCreditLedger();
   const queryClient = useQueryClient();
@@ -65,6 +74,10 @@ export default function CreditLedgerPage() {
   const [paymentPartyName, setPaymentPartyName] = useState<string>("");
   const [paymentAmount, setPaymentAmount] = useState<string>("");
   const [paymentNote, setPaymentNote] = useState<string>("");
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletePartyId, setDeletePartyId] = useState<string | null>(null);
+  const [deletePartyName, setDeletePartyName] = useState<string>("");
 
   const createPartyMutation = useMutation({
     mutationFn: createParty,
@@ -87,6 +100,16 @@ export default function CreditLedgerPage() {
       setPaymentPartyName("");
       setPaymentAmount("");
       setPaymentNote("");
+    },
+  });
+
+  const deletePartyMutation = useMutation({
+    mutationFn: deleteParty,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["credit-ledger"] });
+      setDeleteDialogOpen(false);
+      setDeletePartyId(null);
+      setDeletePartyName("");
     },
   });
 
@@ -286,6 +309,24 @@ export default function CreditLedgerPage() {
         </DialogContent>
       </Dialog>
 
+      <DeleteConfirmationDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) {
+            setDeletePartyId(null);
+            setDeletePartyName("");
+          }
+        }}
+        title={deletePartyName ? `Delete ${deletePartyName}?` : "Delete party?"}
+        description="This will remove the party from the database. Related ledger transactions will also be removed."
+        isDeleting={deletePartyMutation.isPending}
+        onConfirm={() => {
+          if (!deletePartyId) return;
+          deletePartyMutation.mutate(deletePartyId);
+        }}
+      />
+
       <div className="grid grid-cols-2 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -340,6 +381,17 @@ export default function CreditLedgerPage() {
                       }}
                     >
                       Record Payment
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setDeletePartyId(party.id);
+                        setDeletePartyName(party.name);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
