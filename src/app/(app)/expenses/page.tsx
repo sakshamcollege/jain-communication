@@ -31,15 +31,14 @@ import { ExpenseForm } from "@/components/ExpenseForm";
 import { ExpenseListSkeleton } from "@/components/Skeletons";
 import { EditButton, DeleteButton } from "@/components/ui/action-buttons";
 import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
-import {
-  DateFilterSelect,
-  DateFilter,
-  dateFilterLabels,
-  getDateRangeFromFilter,
-} from "@/components/DateFilter";
+import { DateRangePicker, type DateRangeInput } from "@/components/DateRangePicker";
 import {
   formatCurrency,
+  formatDateInput,
   formatDateTime,
+  getDateRangeFromInputs,
+  getDateRangeLabel,
+  getStartOfToday,
 } from "@/lib/helpers";
 import {
   Plus,
@@ -52,13 +51,16 @@ export default function ExpensesPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
   const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null);
-  const [dateFilter, setDateFilter] = useState<DateFilter>("today");
+  const [dateRange, setDateRange] = useState<DateRangeInput>(() => {
+    const today = formatDateInput(getStartOfToday());
+    return { from: today, to: today };
+  });
   const [paymentModeFilter, setPaymentModeFilter] = useState<PaymentMode | "all">("all");
 
   const deleteExpenseMutation = useDeleteExpense();
 
   const filters = {
-    ...getDateRangeFromFilter(dateFilter),
+    ...getDateRangeFromInputs(dateRange),
     ...(paymentModeFilter !== "all" ? { paymentMode: paymentModeFilter } : {}),
   };
 
@@ -70,6 +72,8 @@ export default function ExpensesPage() {
   const totalAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
   const expenseCount = filteredExpenses.length;
   const paymentModesUsed = new Set(filteredExpenses.map((e) => e.paymentMode)).size;
+
+  const rangeLabel = getDateRangeLabel(dateRange);
 
   // Group expenses by payment mode for summary
   const expensesByMode = filteredExpenses.reduce(
@@ -158,7 +162,7 @@ export default function ExpensesPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
               <Wallet className="h-4 w-4" />
-              <span className="text-sm">{dateFilterLabels[dateFilter]} Expenses</span>
+              <span className="text-sm">{rangeLabel} Expenses</span>
             </div>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">
               {formatCurrency(totalAmount)}
@@ -200,9 +204,9 @@ export default function ExpensesPage() {
         </Card>
       )}
 
-      {/* Date Filter */}
+      {/* Date Range */}
       <div className="flex items-center gap-4">
-        <DateFilterSelect value={dateFilter} onValueChange={setDateFilter} />
+        <DateRangePicker value={dateRange} onValueChange={setDateRange} />
       </div>
 
       {/* Payment Mode Filter */}
@@ -271,10 +275,10 @@ export default function ExpensesPage() {
           <h3 className="text-lg font-semibold mb-2">No expenses found</h3>
           <p className="text-muted-foreground mb-4">
             {paymentModeFilter === "all"
-              ? dateFilter === "all"
+              ? !dateRange.from && !dateRange.to
                 ? "Record your first expense to get started"
-                : `No expenses recorded for ${dateFilterLabels[dateFilter].toLowerCase()}`
-              : `No ${paymentModeFilter.toLowerCase()} expenses for ${dateFilterLabels[dateFilter].toLowerCase()}`}
+                : `No expenses recorded for ${rangeLabel.toLowerCase()}`
+              : `No ${paymentModeFilter.toLowerCase()} expenses for ${rangeLabel.toLowerCase()}`}
           </p>
           <Button onClick={() => handleOpenSheet()}>
             <Plus className="w-4 h-4 mr-2" />

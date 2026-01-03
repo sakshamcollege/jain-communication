@@ -23,14 +23,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useStockHistory, useAdjustStock, useProducts } from "@/lib/hooks";
-import { formatDateTime, getStartOfToday, getStartOfWeek, getStartOfMonth } from "@/lib/helpers";
+import { formatDateInput, formatDateTime, getDateRangeFromInputs, getDateRangeLabel, getStartOfToday } from "@/lib/helpers";
+import { DateRangePicker, type DateRangeInput } from "@/components/DateRangePicker";
 import {
   Package,
   TrendingUp,
   TrendingDown,
-  Calendar,
   Plus,
-  Minus,
   ArrowRightLeft,
   Loader2,
   History,
@@ -41,7 +40,6 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { StockMovementWithProduct, StockMovementType } from "@/lib/types";
 
-type DateFilter = "today" | "week" | "month" | "all";
 type TypeFilter = "all" | "STOCK_IN" | "STOCK_OUT" | "INITIAL" | "ADJUSTMENT";
 
 function StockHistoryListSkeleton() {
@@ -142,48 +140,25 @@ function getMovementLabel(type: StockMovementType) {
 }
 
 function StockHistoryPageContent() {
-  const [dateFilter, setDateFilter] = useState<DateFilter>("today");
+  const [dateRange, setDateRange] = useState<DateRangeInput>(() => {
+    const today = formatDateInput(getStartOfToday());
+    return { from: today, to: today };
+  });
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [adjustQuantity, setAdjustQuantity] = useState<string>("");
   const [adjustReason, setAdjustReason] = useState<string>("");
 
-  const getDateRange = () => {
-    switch (dateFilter) {
-      case "today":
-        return { startDate: getStartOfToday().toISOString() };
-      case "week":
-        return { startDate: getStartOfWeek().toISOString() };
-      case "month":
-        return { startDate: getStartOfMonth().toISOString() };
-      default:
-        return {};
-    }
-  };
-
   const { data: stockHistory, isLoading } = useStockHistory({
-    ...getDateRange(),
+    ...getDateRangeFromInputs(dateRange),
     type: typeFilter === "all" ? undefined : typeFilter,
   });
 
   const { data: products } = useProducts();
   const adjustStock = useAdjustStock();
 
-  const dateFilterLabel: Record<DateFilter, string> = {
-    today: "Today",
-    week: "This Week",
-    month: "This Month",
-    all: "All Time",
-  };
-
-  const typeFilterLabel: Record<TypeFilter, string> = {
-    all: "All Types",
-    STOCK_IN: "Stock In",
-    STOCK_OUT: "Sold",
-    INITIAL: "Initial Stock",
-    ADJUSTMENT: "Adjustments",
-  };
+  const rangeLabel = getDateRangeLabel(dateRange);
 
   // Calculate summaries
   const stockInCount = stockHistory?.filter((m) => m.type === "STOCK_IN" || m.type === "INITIAL").reduce((sum, m) => sum + Math.abs(m.quantity), 0) || 0;
@@ -229,7 +204,7 @@ function StockHistoryPageContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Stock History</h1>
-          <p className="text-muted-foreground">{dateFilterLabel[dateFilter]} stock movements</p>
+          <p className="text-muted-foreground">{rangeLabel} stock movements</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -313,7 +288,7 @@ function StockHistoryPageContent() {
               <span className="text-sm">Stock In</span>
             </div>
             <p className="text-2xl font-bold text-green-600 dark:text-green-400">+{stockInCount}</p>
-            <p className="text-xs text-muted-foreground">{dateFilterLabel[dateFilter]}</p>
+            <p className="text-xs text-muted-foreground">{rangeLabel}</p>
           </CardContent>
         </Card>
         <Card>
@@ -323,7 +298,7 @@ function StockHistoryPageContent() {
               <span className="text-sm">Sold Out</span>
             </div>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">-{stockOutCount}</p>
-            <p className="text-xs text-muted-foreground">{dateFilterLabel[dateFilter]}</p>
+            <p className="text-xs text-muted-foreground">{rangeLabel}</p>
           </CardContent>
         </Card>
         <Card>
@@ -335,25 +310,14 @@ function StockHistoryPageContent() {
             <p className={`text-2xl font-bold ${stockInCount - stockOutCount + adjustmentCount >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
               {stockInCount - stockOutCount + adjustmentCount >= 0 ? "+" : ""}{stockInCount - stockOutCount + adjustmentCount}
             </p>
-            <p className="text-xs text-muted-foreground">{dateFilterLabel[dateFilter]}</p>
+            <p className="text-xs text-muted-foreground">{rangeLabel}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
-        <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as DateFilter)}>
-          <SelectTrigger className="w-[180px]">
-            <Calendar className="w-4 h-4 mr-2" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="today">Today</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="all">All Time</SelectItem>
-          </SelectContent>
-        </Select>
+        <DateRangePicker value={dateRange} onValueChange={setDateRange} />
 
         <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as TypeFilter)}>
           <SelectTrigger className="w-[180px]">
@@ -431,9 +395,9 @@ function StockHistoryPageContent() {
             <History className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold">No stock movements found</h3>
             <p className="text-muted-foreground mb-4">
-              {dateFilter === "all"
+              {!dateRange.from && !dateRange.to
                 ? "Stock movements will appear here when you add products, make sales, or adjust stock"
-                : `No stock movements recorded for ${dateFilterLabel[dateFilter].toLowerCase()}`}
+                : `No stock movements recorded for ${rangeLabel.toLowerCase()}`}
             </p>
             <Button onClick={() => setDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />

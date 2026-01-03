@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useSales, useDeleteSale } from "@/lib/hooks";
-import { formatCurrency, formatDateTime, getStartOfToday, getStartOfWeek, getStartOfMonth } from "@/lib/helpers";
+import { formatCurrency, formatDateTime, formatDateInput, getDateRangeFromInputs, getDateRangeLabel, getStartOfToday } from "@/lib/helpers";
 import { SalesForm } from "@/components/SalesForm";
 import { SalesListSkeleton } from "@/components/Skeletons";
 import { Button } from "@/components/ui/button";
@@ -10,12 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DeleteButton } from "@/components/ui/action-buttons";
 import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
-import {
-  DateFilterSelect,
-  DateFilter,
-  dateFilterLabels,
-  getDateRangeFromFilter,
-} from "@/components/DateFilter";
+import { DateRangePicker, type DateRangeInput } from "@/components/DateRangePicker";
 import {
   Sheet,
   SheetContent,
@@ -35,13 +30,16 @@ import { Plus, ShoppingCart, TrendingUp } from "lucide-react";
 import { SaleWithProduct } from "@/lib/types";
 
 export default function SalesPage() {
-  const [dateFilter, setDateFilter] = useState<DateFilter>("today");
+  const [dateRange, setDateRange] = useState<DateRangeInput>(() => {
+    const today = formatDateInput(getStartOfToday());
+    return { from: today, to: today };
+  });
   const [isAddingOpen, setIsAddingOpen] = useState(false);
   const [saleToDelete, setSaleToDelete] = useState<SaleWithProduct | null>(null);
   
   const deleteSaleMutation = useDeleteSale();
 
-  const { data: sales, isLoading, error } = useSales(getDateRangeFromFilter(dateFilter));
+  const { data: sales, isLoading, error } = useSales(getDateRangeFromInputs(dateRange));
 
   // Calculate totals
   const totals = sales?.reduce(
@@ -53,12 +51,7 @@ export default function SalesPage() {
     { revenue: 0, profit: 0, count: 0 }
   ) || { revenue: 0, profit: 0, count: 0 };
 
-  const dateFilterLabel = {
-    today: "Today",
-    week: "This Week",
-    month: "This Month",
-    all: "All Time",
-  };
+  const rangeLabel = getDateRangeLabel(dateRange);
 
   const handleDeleteSale = async () => {
     if (!saleToDelete) return;
@@ -120,13 +113,13 @@ export default function SalesPage() {
       <div className="grid grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">{dateFilterLabels[dateFilter]} Revenue</p>
+            <p className="text-xs text-muted-foreground mb-1">{rangeLabel} Revenue</p>
             <p className="text-xl font-bold">{formatCurrency(totals.revenue)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">{dateFilterLabels[dateFilter]} Profit</p>
+            <p className="text-xs text-muted-foreground mb-1">{rangeLabel} Profit</p>
             <p className="text-xl font-bold text-green-600">{formatCurrency(totals.profit)}</p>
           </CardContent>
         </Card>
@@ -140,7 +133,7 @@ export default function SalesPage() {
 
       {/* Filter */}
       <div className="flex items-center gap-4">
-        <DateFilterSelect value={dateFilter} onValueChange={setDateFilter} />
+        <DateRangePicker value={dateRange} onValueChange={setDateRange} />
       </div>
 
       {/* Sales List */}
@@ -193,9 +186,9 @@ export default function SalesPage() {
           <ShoppingCart className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">No sales found</h3>
           <p className="text-muted-foreground mb-4">
-            {dateFilter === "all"
+            {!dateRange.from && !dateRange.to
               ? "Record your first sale to get started"
-              : `No sales recorded for ${dateFilterLabels[dateFilter].toLowerCase()}`}
+              : `No sales recorded for ${rangeLabel.toLowerCase()}`}
           </p>
           <Button onClick={() => setIsAddingOpen(true)}>
             <Plus className="w-4 h-4 mr-2" />

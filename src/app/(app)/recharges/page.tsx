@@ -14,15 +14,10 @@ import {
 } from "@/components/ui/dialog";
 import { useRecharges, useDeleteRecharge, Recharge } from "@/lib/hooks/useRecharges";
 import { RechargeForm } from "@/components/RechargeForm";
-import { formatCurrency, formatDateTime } from "@/lib/helpers";
+import { formatCurrency, formatDateInput, formatDateTime, getDateRangeFromInputs, getDateRangeLabel, getStartOfToday } from "@/lib/helpers";
 import { EditButton, DeleteButton } from "@/components/ui/action-buttons";
 import { DeleteConfirmationDialog } from "@/components/DeleteConfirmationDialog";
-import {
-  DateFilterSelect,
-  DateFilter,
-  dateFilterLabels,
-  getDateRangeFromFilter,
-} from "@/components/DateFilter";
+import { DateRangePicker, type DateRangeInput } from "@/components/DateRangePicker";
 import {
   Plus,
   Smartphone,
@@ -34,11 +29,14 @@ function RechargesPageContent() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [rechargeToEdit, setRechargeToEdit] = useState<Recharge | null>(null);
   const [rechargeToDelete, setRechargeToDelete] = useState<Recharge | null>(null);
-  const [dateFilter, setDateFilter] = useState<DateFilter>("today");
+  const [dateRange, setDateRange] = useState<DateRangeInput>(() => {
+    const today = formatDateInput(getStartOfToday());
+    return { from: today, to: today };
+  });
 
   const deleteRecharge = useDeleteRecharge();
 
-  const { data: recharges, isLoading } = useRecharges(getDateRangeFromFilter(dateFilter));
+  const { data: recharges, isLoading } = useRecharges(getDateRangeFromInputs(dateRange));
 
   const handleOpenDialog = (recharge?: Recharge) => {
     setRechargeToEdit(recharge || null);
@@ -65,13 +63,15 @@ function RechargesPageContent() {
   const totalAmount = recharges?.reduce((sum, r) => sum + r.amount, 0) || 0;
   const totalProfit = recharges?.reduce((sum, r) => sum + r.profit, 0) || 0;
 
+  const rangeLabel = getDateRangeLabel(dateRange);
+
   return (
     <div className="container mx-auto p-4 pb-24 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Recharges</h1>
-          <p className="text-muted-foreground">{dateFilterLabels[dateFilter]} mobile recharge records</p>
+          <p className="text-muted-foreground">{rangeLabel} mobile recharge records</p>
         </div>
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>
@@ -102,7 +102,7 @@ function RechargesPageContent() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground">
               <Smartphone className="h-4 w-4" />
-              <span className="text-sm">{dateFilterLabels[dateFilter]} Recharges</span>
+              <span className="text-sm">{rangeLabel} Recharges</span>
             </div>
             <p className="text-2xl font-bold">{formatCurrency(totalAmount)}</p>
             <p className="text-xs text-muted-foreground">{recharges?.length || 0} entries</p>
@@ -121,9 +121,9 @@ function RechargesPageContent() {
         </Card>
       </div>
 
-      {/* Date Filter */}
+      {/* Date Range */}
       <div className="flex items-center gap-4">
-        <DateFilterSelect value={dateFilter} onValueChange={setDateFilter} />
+        <DateRangePicker value={dateRange} onValueChange={setDateRange} />
       </div>
 
       {/* Recharges List */}
@@ -172,9 +172,9 @@ function RechargesPageContent() {
             <Smartphone className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold">No recharges found</h3>
             <p className="text-muted-foreground mb-4">
-              {dateFilter === "all"
+              {!dateRange.from && !dateRange.to
                 ? "Record your first recharge to get started"
-                : `No recharges recorded for ${dateFilterLabels[dateFilter].toLowerCase()}`}
+                : `No recharges recorded for ${rangeLabel.toLowerCase()}`}
             </p>
             <Button onClick={() => handleOpenDialog()}>
               <Plus className="mr-2 h-4 w-4" />

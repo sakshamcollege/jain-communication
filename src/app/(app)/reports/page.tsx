@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { useSales, useProducts } from "@/lib/hooks";
-import { formatCurrency, getStartOfWeek, getStartOfMonth } from "@/lib/helpers";
+import { formatCurrency, getDateRangeFromInputs, getDateRangeLabel, getStartOfMonth, getStartOfWeek } from "@/lib/helpers";
+import { DateRangePicker, type DateRangeInput } from "@/components/DateRangePicker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +16,9 @@ import {
 } from "lucide-react";
 
 export default function ReportsPage() {
+  const [dateRange, setDateRange] = useState<DateRangeInput>({});
+  const rangeLabel = getDateRangeLabel(dateRange);
+
   const startOfWeek = getStartOfWeek().toISOString();
   const startOfMonth = getStartOfMonth().toISOString();
 
@@ -23,10 +28,12 @@ export default function ReportsPage() {
   const { data: monthlySales, isLoading: monthlyLoading } = useSales({
     startDate: startOfMonth,
   });
-  const { data: allSales, isLoading: allLoading } = useSales({});
+  const { data: rangeSales, isLoading: rangeLoading } = useSales(
+    getDateRangeFromInputs(dateRange)
+  );
   const { data: products, isLoading: productsLoading } = useProducts({});
 
-  const isLoading = weeklyLoading || monthlyLoading || allLoading || productsLoading;
+  const isLoading = weeklyLoading || monthlyLoading || rangeLoading || productsLoading;
 
   // Calculate weekly stats
   const weeklyStats = weeklySales?.reduce(
@@ -51,7 +58,7 @@ export default function ReportsPage() {
   ) || { revenue: 0, profit: 0, quantity: 0, count: 0 };
 
   // Calculate all-time stats
-  const allTimeStats = allSales?.reduce(
+  const rangeStats = rangeSales?.reduce(
     (acc, sale) => ({
       revenue: acc.revenue + sale.sellingPrice * sale.quantity,
       profit: acc.profit + sale.profit,
@@ -64,7 +71,7 @@ export default function ReportsPage() {
   // Calculate top selling products
   const productSalesMap = new Map<string, { name: string; category: string; quantity: number; revenue: number; profit: number }>();
   
-  allSales?.forEach((sale) => {
+  rangeSales?.forEach((sale) => {
     const existing = productSalesMap.get(sale.productId);
     if (existing) {
       existing.quantity += sale.quantity;
@@ -121,6 +128,9 @@ export default function ReportsPage() {
         <p className="text-muted-foreground">
           Business insights and performance metrics
         </p>
+        <div className="mt-4">
+          <DateRangePicker value={dateRange} onValueChange={setDateRange} />
+        </div>
       </div>
 
       {/* Weekly Stats */}
@@ -298,28 +308,28 @@ export default function ReportsPage() {
         </CardContent>
       </Card>
 
-      {/* All Time Stats */}
+      {/* Selected Range Stats */}
       <Card>
         <CardHeader>
-          <CardTitle>All Time Statistics</CardTitle>
+          <CardTitle>{rangeLabel} Statistics</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Total Revenue</p>
-              <p className="text-2xl font-bold">{formatCurrency(allTimeStats.revenue)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(rangeStats.revenue)}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Profit</p>
-              <p className="text-2xl font-bold text-green-600">{formatCurrency(allTimeStats.profit)}</p>
+              <p className="text-2xl font-bold text-green-600">{formatCurrency(rangeStats.profit)}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Items Sold</p>
-              <p className="text-2xl font-bold">{allTimeStats.quantity}</p>
+              <p className="text-2xl font-bold">{rangeStats.quantity}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Transactions</p>
-              <p className="text-2xl font-bold">{allTimeStats.count}</p>
+              <p className="text-2xl font-bold">{rangeStats.count}</p>
             </div>
           </div>
         </CardContent>
