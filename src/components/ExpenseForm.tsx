@@ -29,6 +29,7 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
     () => (editExpense ? editExpense.paymentMode : "")
   );
   const [description, setDescription] = useState(() => (editExpense ? editExpense.description : ""));
+  const [isPersonal, setIsPersonal] = useState(() => Boolean(editExpense?.isPersonal));
   const [isCredit, setIsCredit] = useState(() => Boolean(editExpense?.isCredit) || editExpense?.paymentMode === "Credit");
   const [partyId, setPartyId] = useState<string>("");
   const [partyName, setPartyName] = useState("");
@@ -49,7 +50,8 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
       return;
     }
 
-    const finalPaymentMode = isCredit ? ("Credit" as PaymentMode) : (paymentMode as PaymentMode);
+    const finalPaymentMode =
+      !isPersonal && isCredit ? ("Credit" as PaymentMode) : (paymentMode as PaymentMode);
 
     if (!finalPaymentMode) {
       return;
@@ -59,7 +61,7 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
       return;
     }
 
-    if (!editExpense && isCredit && !partyId && partyName.trim().length < 2) {
+    if (!editExpense && !isPersonal && isCredit && !partyId && partyName.trim().length < 2) {
       return;
     }
 
@@ -70,12 +72,14 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
           amount: parseFloat(amount),
           paymentMode: finalPaymentMode,
           description: description.trim(),
+          isPersonal,
         });
         
         // Reset form
         setAmount("");
         setPaymentMode("");
         setDescription("");
+        setIsPersonal(false);
 
         onSuccess?.();
       } else {
@@ -84,7 +88,8 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
           amount: parseFloat(amount),
           paymentMode: finalPaymentMode,
           description: description.trim(),
-          ...(isCredit
+          isPersonal,
+          ...(!isPersonal && isCredit
             ? {
                 isCredit: true,
                 ...(partyId
@@ -101,6 +106,7 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
         setAmount("");
         setPaymentMode("");
         setDescription("");
+        setIsPersonal(false);
         setIsCredit(false);
         setPartyId("");
         setPartyName("");
@@ -115,8 +121,46 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Credit Toggle (create only) */}
-      {!isEditing && (
+      {/* Shop vs Personal */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Expense Type *</Label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setIsPersonal(false)}
+            disabled={isPending}
+            className={`h-11 rounded-md border text-sm font-medium ${
+              !isPersonal ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+            }`}
+            aria-pressed={!isPersonal}
+          >
+            Shop
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setIsPersonal(true);
+              setIsCredit(false);
+              if (paymentMode === "Credit") setPaymentMode("");
+            }}
+            disabled={isPending || (isEditing && Boolean(editExpense?.isCredit))}
+            className={`h-11 rounded-md border text-sm font-medium ${
+              isPersonal ? "bg-primary text-primary-foreground" : "hover:bg-muted"
+            }`}
+            aria-pressed={isPersonal}
+          >
+            Personal
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          {isPersonal
+            ? "Your own spending — kept separate from shop expenses"
+            : "Business expense for the shop"}
+        </p>
+      </div>
+
+      {/* Credit Toggle (shop expenses, create only) */}
+      {!isEditing && !isPersonal && (
         <div className="space-y-3 rounded-lg border p-4">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -256,7 +300,7 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="e.g., Office supplies, Transport"
+          placeholder={isPersonal ? "e.g., Groceries, Petrol, Medicine" : "e.g., Office supplies, Transport"}
           disabled={isPending}
           className="h-11"
         />
@@ -265,6 +309,10 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
       {/* Preview */}
       {amount && parseFloat(amount) > 0 && paymentMode && (
         <div className="p-4 bg-muted/50 rounded-lg text-sm space-y-2 border">
+          <div className="flex justify-between items-center">
+            <span className="text-muted-foreground">Type:</span>
+            <span className="font-medium">{isPersonal ? "Personal" : "Shop"}</span>
+          </div>
           <div className="flex justify-between items-center">
             <span className="text-muted-foreground">Payment Mode:</span>
             <span className="font-medium">{paymentMode}</span>
@@ -296,9 +344,9 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
           disabled={
             !amount ||
             parseFloat(amount) <= 0 ||
-            !(isCredit ? true : paymentMode) ||
+            !(isCredit && !isPersonal ? true : paymentMode) ||
             !description.trim() ||
-            (!isEditing && isCredit && !partyId && partyName.trim().length < 2) ||
+            (!isEditing && !isPersonal && isCredit && !partyId && partyName.trim().length < 2) ||
             isPending
           }
         >
@@ -310,12 +358,12 @@ export function ExpenseForm({ onSuccess, onCancel, editExpense }: ExpenseFormPro
           ) : isEditing ? (
             <>
               <Save className="w-4 h-4 mr-2" />
-              Update Expense
+              Update {isPersonal ? "Personal" : "Shop"} Expense
             </>
           ) : (
             <>
               <CreditCard className="w-4 h-4 mr-2" />
-              Record Expense
+              Record {isPersonal ? "Personal" : "Shop"} Expense
             </>
           )}
         </Button>

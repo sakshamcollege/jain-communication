@@ -17,11 +17,12 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { amount, paymentMode, description } = body as {
+    const { amount, paymentMode, description, isPersonal } = body as {
       amount?: number;
       paymentMode?: string;
       description?: string;
       isCredit?: boolean;
+      isPersonal?: boolean;
       partyName?: string;
     };
 
@@ -82,6 +83,16 @@ export async function PUT(
         );
       }
       updateData.description = description.trim();
+    }
+
+    if (isPersonal !== undefined) {
+      if (existingExpense.isCredit && Boolean(isPersonal)) {
+        return NextResponse.json(
+          { error: "Credit expenses cannot be marked as personal" },
+          { status: 400 }
+        );
+      }
+      updateData.isPersonal = Boolean(isPersonal);
     }
 
     const expense = await prisma.expense.update({

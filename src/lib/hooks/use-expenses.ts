@@ -7,6 +7,7 @@ interface ExpenseFilters {
   startDate?: string;
   endDate?: string;
   paymentMode?: PaymentMode;
+  isPersonal?: boolean;
 }
 
 // Fetch expenses with filters
@@ -16,6 +17,7 @@ async function fetchExpenses(filters: ExpenseFilters = {}): Promise<Expense[]> {
   if (filters.startDate) params.append("startDate", filters.startDate);
   if (filters.endDate) params.append("endDate", filters.endDate);
   if (filters.paymentMode) params.append("paymentMode", filters.paymentMode);
+  if (filters.isPersonal !== undefined) params.append("isPersonal", String(filters.isPersonal));
 
   const response = await fetch(`/api/expenses?${params.toString()}`);
   if (!response.ok) throw new Error("Failed to fetch expenses");
@@ -80,6 +82,8 @@ export function useCreateExpense() {
         amount: newExpense.amount,
         paymentMode: newExpense.paymentMode,
         description: newExpense.description,
+        isPersonal: Boolean(newExpense.isPersonal),
+        isCredit: Boolean(newExpense.isCredit),
         createdAt: new Date(),
       };
 

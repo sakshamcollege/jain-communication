@@ -195,6 +195,7 @@ export interface Expense {
   paymentMode: PaymentMode;
   description: string;
   isCredit?: boolean;
+  isPersonal?: boolean;
   partyId?: string | null;
   createdAt: Date;
 }
@@ -204,6 +205,7 @@ export interface CreateExpenseInput {
   paymentMode: PaymentMode;
   description: string;
   isCredit?: boolean;
+  isPersonal?: boolean;
   partyId?: string;
   partyName?: string;
   partyPhone?: string;

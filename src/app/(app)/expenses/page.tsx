@@ -11,21 +11,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useExpenses, useDeleteExpense } from "@/lib/hooks";
 import { ExpenseForm } from "@/components/ExpenseForm";
 import { ExpenseListSkeleton } from "@/components/Skeletons";
@@ -44,8 +29,11 @@ import {
   Plus,
   CreditCard,
   Wallet,
+  User,
 } from "lucide-react";
 import { Expense, PaymentMode, PAYMENT_MODES } from "@/lib/types";
+
+type ExpenseTypeFilter = "all" | "shop" | "personal";
 
 export default function ExpensesPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -56,6 +44,7 @@ export default function ExpensesPage() {
     return { from: today, to: today };
   });
   const [paymentModeFilter, setPaymentModeFilter] = useState<PaymentMode | "all">("all");
+  const [typeFilter, setTypeFilter] = useState<ExpenseTypeFilter>("all");
 
   const deleteExpenseMutation = useDeleteExpense();
 
@@ -66,12 +55,19 @@ export default function ExpensesPage() {
 
   const { data: expenses, isLoading, error } = useExpenses(filters);
 
-  const filteredExpenses = expenses || [];
+  const datedExpenses = expenses || [];
+  const shopExpenses = datedExpenses.filter((e) => !e.isPersonal);
+  const personalExpenses = datedExpenses.filter((e) => e.isPersonal);
+  const filteredExpenses =
+    typeFilter === "shop"
+      ? shopExpenses
+      : typeFilter === "personal"
+        ? personalExpenses
+        : datedExpenses;
 
   // Calculate totals
-  const totalAmount = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
-  const expenseCount = filteredExpenses.length;
-  const paymentModesUsed = new Set(filteredExpenses.map((e) => e.paymentMode)).size;
+  const shopTotal = shopExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const personalTotal = personalExpenses.reduce((sum, e) => sum + e.amount, 0);
 
   const rangeLabel = getDateRangeLabel(dateRange);
 
@@ -122,7 +118,7 @@ export default function ExpensesPage() {
         <div>
           <h1 className="text-2xl font-bold">Expenses</h1>
           <p className="text-muted-foreground">
-            Track and manage your daily expenses
+            Track shop expenses and your personal spending
           </p>
         </div>
 
@@ -162,22 +158,28 @@ export default function ExpensesPage() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-red-700 dark:text-red-300">
               <Wallet className="h-4 w-4" />
-              <span className="text-sm">{rangeLabel} Expenses</span>
+              <span className="text-sm">Shop</span>
             </div>
             <p className="text-2xl font-bold text-red-600 dark:text-red-400">
-              {formatCurrency(totalAmount)}
+              {formatCurrency(shopTotal)}
             </p>
-            <p className="text-xs text-muted-foreground">{expenseCount} entries</p>
+            <p className="text-xs text-muted-foreground">
+              {shopExpenses.length} entries · {rangeLabel}
+            </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <CreditCard className="h-4 w-4" />
-              <span className="text-sm">Payment Modes</span>
+            <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+              <User className="h-4 w-4" />
+              <span className="text-sm">Personal</span>
             </div>
-            <p className="text-2xl font-bold">{paymentModesUsed}</p>
-            <p className="text-xs text-muted-foreground">modes used</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {formatCurrency(personalTotal)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {personalExpenses.length} entries · {rangeLabel}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -209,6 +211,24 @@ export default function ExpensesPage() {
         <DateRangePicker value={dateRange} onValueChange={setDateRange} />
       </div>
 
+      {/* Type Filter */}
+      <div className="flex flex-wrap gap-2">
+        {([
+          { id: "all", label: "All" },
+          { id: "shop", label: "Shop" },
+          { id: "personal", label: "Personal" },
+        ] as const).map((option) => (
+          <Button
+            key={option.id}
+            size="sm"
+            variant={typeFilter === option.id ? "default" : "outline"}
+            onClick={() => setTypeFilter(option.id)}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+
       {/* Payment Mode Filter */}
       <div className="flex flex-wrap gap-2">
         <Button
@@ -216,7 +236,7 @@ export default function ExpensesPage() {
           variant={paymentModeFilter === "all" ? "default" : "outline"}
           onClick={() => setPaymentModeFilter("all")}
         >
-          All
+          All modes
         </Button>
         {PAYMENT_MODES.map((mode) => (
           <Button
@@ -240,12 +260,28 @@ export default function ExpensesPage() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-start gap-3">
-                    <div className="p-2 bg-red-100 dark:bg-red-900 rounded-full">
-                      <CreditCard className="w-4 h-4 text-red-600 dark:text-red-300" />
+                    <div
+                      className={`p-2 rounded-full ${
+                        expense.isPersonal
+                          ? "bg-blue-100 dark:bg-blue-900"
+                          : "bg-red-100 dark:bg-red-900"
+                      }`}
+                    >
+                      {expense.isPersonal ? (
+                        <User className="w-4 h-4 text-blue-600 dark:text-blue-300" />
+                      ) : (
+                        <CreditCard className="w-4 h-4 text-red-600 dark:text-red-300" />
+                      )}
                     </div>
                     <div>
                       <p className="font-medium">{expense.description}</p>
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        <Badge
+                          variant={expense.isPersonal ? "outline" : "secondary"}
+                          className="text-xs"
+                        >
+                          {expense.isPersonal ? "Personal" : "Shop"}
+                        </Badge>
                         <Badge variant="secondary" className="text-xs">
                           {expense.paymentMode}
                         </Badge>
@@ -257,7 +293,11 @@ export default function ExpensesPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="text-right mr-2">
-                      <p className="font-semibold text-red-600">
+                      <p
+                        className={`font-semibold ${
+                          expense.isPersonal ? "text-blue-600" : "text-red-600"
+                        }`}
+                      >
                         -{formatCurrency(expense.amount)}
                       </p>
                     </div>
@@ -274,11 +314,13 @@ export default function ExpensesPage() {
           <Wallet className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">No expenses found</h3>
           <p className="text-muted-foreground mb-4">
-            {paymentModeFilter === "all"
-              ? !dateRange.from && !dateRange.to
-                ? "Record your first expense to get started"
-                : `No expenses recorded for ${rangeLabel.toLowerCase()}`
-              : `No ${paymentModeFilter.toLowerCase()} expenses for ${rangeLabel.toLowerCase()}`}
+            {typeFilter !== "all"
+              ? `No ${typeFilter} expenses for ${rangeLabel.toLowerCase()}`
+              : paymentModeFilter === "all"
+                ? !dateRange.from && !dateRange.to
+                  ? "Record your first expense to get started"
+                  : `No expenses recorded for ${rangeLabel.toLowerCase()}`
+                : `No ${paymentModeFilter.toLowerCase()} expenses for ${rangeLabel.toLowerCase()}`}
           </p>
           <Button onClick={() => handleOpenSheet()}>
             <Plus className="w-4 h-4 mr-2" />
@@ -301,6 +343,12 @@ export default function ExpensesPage() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Description:</span>
               <span className="font-medium">{expenseToDelete.description}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Type:</span>
+              <span className="font-medium">
+                {expenseToDelete.isPersonal ? "Personal" : "Shop"}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Payment Mode:</span>

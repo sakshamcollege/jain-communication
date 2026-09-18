@@ -124,6 +124,7 @@ model Expense {
   paymentMode String   // Payment mode (SBI Card, HDFC Card, etc.)
   description String   // What the expense was made for
   isCredit    Boolean  @default(false)
+  isPersonal  Boolean  @default(false)
   partyId     String?
   createdAt   DateTime @default(now())
 
@@ -132,6 +133,7 @@ model Expense {
   @@index([createdAt])
   @@index([paymentMode])
   @@index([isCredit])
+  @@index([isPersonal])
   @@index([partyId])
 }
 

@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
     const paymentMode = searchParams.get("paymentMode");
+    const isPersonal = searchParams.get("isPersonal");
 
     const where: Record<string, unknown> = {};
 
@@ -42,6 +43,12 @@ export async function GET(request: NextRequest) {
       where.paymentMode = paymentMode;
     }
 
+    if (isPersonal === "true") {
+      where.isPersonal = true;
+    } else if (isPersonal === "false") {
+      where.isPersonal = false;
+    }
+
     const expenses = await prisma.expense.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -64,15 +71,17 @@ export async function POST(request: NextRequest) {
     if (!auth.authorized) return auth.response;
 
     const body = await request.json();
-    const { amount, paymentMode, description, isCredit, partyId, partyName, partyPhone } = body as {
+    const { amount, paymentMode, description, isCredit, isPersonal, partyId, partyName, partyPhone } = body as {
       amount?: number;
       paymentMode?: string;
       description?: string;
       isCredit?: boolean;
+      isPersonal?: boolean;
       partyId?: string;
       partyName?: string;
       partyPhone?: string;
     };
+    const recordAsPersonal = Boolean(isPersonal);
 
     // Validate required fields
     if (!amount || Number(amount) <= 0) {
@@ -82,8 +91,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const shouldCreateCredit = Boolean(isCredit);
+    const shouldCreateCredit = Boolean(isCredit) && !recordAsPersonal;
     const finalPaymentMode = shouldCreateCredit ? "Credit" : paymentMode;
+
+    if (recordAsPersonal && Boolean(isCredit)) {
+      return NextResponse.json(
+        { error: "Personal expenses cannot be recorded on vendor credit" },
+        { status: 400 }
+      );
+    }
 
     if (!finalPaymentMode || !PAYMENT_MODES.includes(finalPaymentMode as PaymentMode)) {
       return NextResponse.json(
@@ -152,6 +168,7 @@ export async function POST(request: NextRequest) {
             paymentMode: "Credit",
             description: description.trim(),
             isCredit: true,
+            isPersonal: false,
             partyId: party.id,
           } as any,
         });
@@ -179,6 +196,7 @@ export async function POST(request: NextRequest) {
         paymentMode: finalPaymentMode,
         description: description.trim(),
         isCredit: false,
+        isPersonal: recordAsPersonal,
         partyId: null,
       } as any,
     });
